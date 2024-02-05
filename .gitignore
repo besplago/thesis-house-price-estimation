@@ -1,0 +1,16 @@
+# venv
+.venv/
+venv/
+env/
+
+# VS Code
+.vscode/
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# Misc
+nybolig_data.csv
