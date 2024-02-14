@@ -252,6 +252,20 @@ def load_model(model_name):
 
 
 ###### MODEL TRAINING #######
+def set_gpu():
+  gpus = tf.config.experimental.list_physical_devices('GPU')
+  if gpus:
+    # Set the GPU to be used
+    try:
+      # tf.config.experimental.set_memory_growth(gpus[0], True)
+      tf.config.experimental.set_visible_devices(gpus[0], 'GPU')
+      logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+      print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPU")
+    except RuntimeError as e:
+      # Visible devices must be set before GPUs have been initialized
+      print(e)
+  else:
+    print("No GPU available")
 
 
 ###### MODEL EVALUATION LINEAR ######
