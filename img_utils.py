@@ -15,6 +15,7 @@ from sklearn.metrics import confusion_matrix
 import seaborn as sns
 from sklearn.metrics import precision_score, recall_score, f1_score
 from sklearn.preprocessing import OneHotEncoder
+
 import tensorflow as tf
 
 
@@ -116,8 +117,57 @@ def data_to_DF(folder_path:str, max_houses)-> pd.DataFrame:
   return df
 
 
-
 ###### FEATURE PROCESSING ######
+def preprocces_data(df: pd.DataFrame)-> pd.DataFrame:
+  """
+  Preprocess the data.
+  """
+  #df = df.drop(columns=["address"])
+  #Feature Columns
+  df['basement_size'] = df["basement_size"].fillna(0)
+  df['year_rebuilt'] = df['year_rebuilt'].where(~df['year_rebuilt'].isna(), df['year_built']).astype(int)
+  #df['type'] = df['type'].astype('category').cat.codes
+  df['energy_label'] = df['energy_label'].astype('category').cat.codes
+  #data.dropna(inplace=True)
+
+  #Image Columns 
+  #df['image_floorplan'] = df['image_floorplan'].apply(convert_to_grayscale)
+  #Optimal: use ImageGenerator to augment the images#
+  
+  #Adding Labels 
+  #df = (label_low_med_high(df, onehot=True))
+
+  #Add a column that holds the image resolution
+  df['image_resolution'] = df['image_floorplan'].apply(lambda x: x.shape)
+  return df
+
+
+
+##### LABEL ENCODING ######
+def prices_to_n_labels(all_prices, prices, n_labels)-> np.array:
+  """
+  Convert the prices to n_labels
+  """
+
+  #Calculate the quantiles
+  quantiles = [np.quantile(all_prices, i/n_labels) for i in range(1, n_labels)]
+
+  labels = [0 if price < quantiles[0] else n_labels-1 if price > quantiles[-1] else np.argmax([price < quantile for quantile in quantiles]) for price in prices]
+  encoder = OneHotEncoder(sparse_output=False)
+  one_hot_labels = encoder.fit_transform(np.array(labels).reshape(-1, 1))
+  return one_hot_labels
+
+def price_categories(all_prices, prices)-> np.array:
+   # Calculate quantiles
+  low_quantile = np.quantile(all_prices, 0.33)
+  #print(low_quantile)
+  high_quantile = np.quantile(all_prices, 0.66)
+  #print(high_quantile)
+  labels = [0 if price < low_quantile else 1 if price < high_quantile else 2 for price in prices]
+  encoder = OneHotEncoder(sparse_output=False)
+  one_hot_labels = encoder.fit_transform(np.array(labels).reshape(-1, 1))
+  return one_hot_labels
+
 def binary_labels(df: pd.DataFrame) -> pd.DataFrame:
   """
   Add labels-column to the data-points, based on prices. Simply version
@@ -175,6 +225,7 @@ def label_low_med_high(df: pd.DataFrame, onehot:bool)-> pd.DataFrame:
     "med": (df['price'].quantile(0.33), df['price'].quantile(0.66)),
     "high": (df['price'].quantile(0.66), df['price'].max()), 
   }
+
   def label(price): 
     if price >= price_ranges['low'][0] and price<= price_ranges['low'][1]: 
       return 0
@@ -183,31 +234,7 @@ def label_low_med_high(df: pd.DataFrame, onehot:bool)-> pd.DataFrame:
     else: 
       return 2
   df['label_price'] = df['price'].apply(label)
-
   return df 
-  
-def preprocces_data(df: pd.DataFrame)-> pd.DataFrame:
-  """
-  Preprocess the data.
-  """
-  #df = df.drop(columns=["address"])
-  #Feature Columns
-  df['basement_size'] = df["basement_size"].fillna(0)
-  df['year_rebuilt'] = df['year_rebuilt'].where(~df['year_rebuilt'].isna(), df['year_built']).astype(int)
-  #df['type'] = df['type'].astype('category').cat.codes
-  df['energy_label'] = df['energy_label'].astype('category').cat.codes
-  #data.dropna(inplace=True)
-
-  #Image Columns 
-  #df['image_floorplan'] = df['image_floorplan'].apply(convert_to_grayscale)
-  #Optimal: use ImageGenerator to augment the images#
-  
-  #Adding Labels 
-  #df = (label_low_med_high(df, onehot=True))
-
-  #Add a column that holds the image resolution
-  df['image_resolution'] = df['image_floorplan'].apply(lambda x: x.shape)
-  return df
 
 
 
@@ -218,6 +245,8 @@ def resize_images(df, column_name:str, width:int, height:int)-> np.array:
 
 def convert_to_grayscale(images: np.array)-> np.array:
   gray_images = np.array([cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) for image in images])
+  #reshape the images
+  gray_images = np.array([image.reshape(image.shape[0], image.shape[1], 1) for image in gray_images])
   return gray_images
 
 def threshold_images(images: np.array)-> np.array:
@@ -288,7 +317,36 @@ def plot_predictions(test_images, actual_prices, predicted_prices):
     plt.axis("off")
   plt.show()
 
+def plot_hist(hist):
+    plt.plot(hist.history["accuracy"])
+    plt.plot(hist.history["val_accuracy"])
+    plt.title("model accuracy")
+    plt.ylabel("accuracy")
+    plt.xlabel("epoch")
+    plt.legend(["train", "validation"], loc="upper left")
+    plt.show()
+    return None
+
+
 ###### MODEL EVALUATION CLASSIFICATION ######
+def label_score(predicted_labels, actual_labels): 
+  """
+  Returns the accuracy, precision, recall and f1-score of the model
+  """
+  accuracy = accuracy_score(actual_labels, predicted_labels)
+  precision = precision_score(actual_labels, predicted_labels, average='weighted')
+  recall = recall_score(actual_labels, predicted_labels, average='weighted')
+  f1 = f1_score(actual_labels, predicted_labels, average='weighted')
+  print(f"Accuracy: {accuracy:.2f}")
+  print(f"Precision: {precision:.2f}")
+  print(f"Recall: {recall:.2f}")
+  cm = confusion_matrix(predicted_labels, actual_labels)
+  sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
+  plt.xlabel("Predicted")
+  plt.ylabel("Actual")
+  plt.show()
+  return None  
+
 
 
 
