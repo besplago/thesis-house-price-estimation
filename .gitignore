@@ -12,6 +12,9 @@ env/
 *.pyd
 __pycache__/
 
+# Models
+*_model/
+
 # Misc
 nybolig_data.csv
 .python-version
