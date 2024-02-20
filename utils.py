@@ -38,3 +38,28 @@ def plot_regression_results(model_name, y_test, y_pred):
     plt.colorbar(label='Distance from Diagonal')
     plt.legend(['Residuals', 'Perfect fit'])
     plt.show()
+
+
+def remove_outliers(df, column, z_score_threshold=2):
+    """Remove outliers from a DataFrame based on a z-score threshold."""
+    from scipy import stats
+    z_scores = np.abs(stats.zscore(df[column]))
+    df_no_outliers = df[z_scores < z_score_threshold]
+    return df_no_outliers
+
+
+def print_DF_price_stats(df): 
+    # Get the number of rows and columns
+    num_datapoints = df.shape[0]
+    mean_price = df['price'].mean()
+    median_price = df['price'].median()
+    min_price = df['price'].min()
+    max_price = df['price'].max()
+    std_price = df['price'].std()
+    print(f"Number of datapoints: {num_datapoints}")
+    print(f"Mean price: {mean_price}")
+    print(f"Median price: {median_price}")
+    print(f"Min price: {min_price}")
+    print(f"Max price: {max_price}")
+    print(f"Standard deviation of price:{std_price}")
+    return None

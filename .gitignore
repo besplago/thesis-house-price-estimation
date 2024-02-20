@@ -18,3 +18,7 @@ __pycache__/
 # Misc
 nybolig_data.csv
 .python-version
+
+#trained_models
+trained_models/
+```
