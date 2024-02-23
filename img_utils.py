@@ -144,13 +144,22 @@ def preprocces_data(df: pd.DataFrame)-> pd.DataFrame:
 
 
 ##### LABEL ENCODING ######
-def prices_to_n_labels(all_prices, prices, n_labels)-> np.array:
+def prices_to_n_labels(all_prices: np.array, prices: np.array, n_labels: int)-> np.array:
   """
   Convert the prices to n_labels
+
+  Args:
+    all_prices(`np.array`): All the prices
+    prices(`np.array`): The prices we want to convert
+    n_labels(`int`): The number of labels we want to convert the prices to
+
+  Returns:
+    `np.array`: The prices converted to n_labels
   """
 
   #Calculate the quantiles
   quantiles = [np.quantile(all_prices, i/n_labels) for i in range(1, n_labels)]
+  print(quantiles)
 
   labels = [0 if price < quantiles[0] else n_labels-1 if price > quantiles[-1] else np.argmax([price < quantile for quantile in quantiles]) for price in prices]
   encoder = OneHotEncoder(sparse_output=False)
@@ -296,6 +305,9 @@ def set_gpu():
   else:
     print("No GPU available")
 
+def set_cpu():
+  print("Setting CPU")
+  tf.config.set_visible_devices([], 'GPU')
 
 ###### MODEL EVALUATION LINEAR ######
 def print_scores_prices(real_prices, predicted_prices): 
