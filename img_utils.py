@@ -15,6 +15,7 @@ from sklearn.metrics import confusion_matrix
 import seaborn as sns
 from sklearn.metrics import precision_score, recall_score, f1_score
 from sklearn.preprocessing import OneHotEncoder
+from sklearn.cluster import KMeans
 
 import tensorflow as tf
 
@@ -363,4 +364,60 @@ def label_score(predicted_labels, actual_labels):
 
 
 
+#SIFT-Features
+def get_sift_features(image):
+  #Convert to image 
+  image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+  sift = cv2.SIFT_create()
+  kp, des = sift.detectAndCompute(image, None)
+  return kp, des
 
+def display_sift_features(image, kp):
+  image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+  print(image.shape)
+  img = cv2.drawKeypoints(image, kp, None)
+  plt.imshow(img)
+  plt.show()
+
+def create_bow_representation(images, k=100):
+  """
+  Creates a Bag-of-Visual-Words representation for a set of images.
+
+  Args:
+      images: A list of numpy arrays representing grayscale images.
+      k: Number of visual words (clusters) to use.
+
+  Returns:
+      A list of histograms representing the frequency of each visual word for each image.
+  """
+
+  all_descriptors = []
+  sift = cv2.SIFT_create()
+  for image in images:
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    _, descriptors = sift.detectAndCompute(image, None)
+    all_descriptors.extend(descriptors)
+
+
+  kmeans = KMeans(n_clusters=k, random_state=0)
+  kmeans.fit(all_descriptors)
+
+  bow_histograms = []
+  for image in images:
+    _, descriptors = sift.detectAndCompute(image, None)
+    hist = np.zeros(k)
+    for descriptor in descriptors:
+      cluster_id = kmeans.predict([descriptor])[0]
+      hist[cluster_id] += 1
+    hist /= len(descriptors)  # Normalize histogram
+    bow_histograms.append(hist)
+
+  return bow_histograms
+
+
+
+
+#Room Classification
+def classify_room(pipe, image):
+  room = pipe.predict([image])
+  return room

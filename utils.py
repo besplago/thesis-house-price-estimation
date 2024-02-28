@@ -1,6 +1,10 @@
 """Utilities for the regression notebook."""
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.compose import ColumnTransformer
+import pandas as pd
 
 def plot_regression_results(model_name, y_test, y_pred):
     """Plot the results of a regression model."""
@@ -21,7 +25,7 @@ def plot_regression_results(model_name, y_test, y_pred):
     plt.scatter(y_test, y_pred, c=colors)
     plt.xlabel('True values')
     plt.ylabel('Predictions')
-    # Plot the perfect fit line
+    #Plot the perfect fit line
     plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], c='r')
     # Name the perfect fit line
     plt.title(f'True values vs Predictions ({model_name})')
@@ -38,6 +42,7 @@ def plot_regression_results(model_name, y_test, y_pred):
     plt.colorbar(label='Distance from Diagonal')
     plt.legend(['Residuals', 'Perfect fit'])
     plt.show()
+    return None
 
 
 def regression_stats(y_test, y_pred):
@@ -74,5 +79,40 @@ def print_DF_price_stats(df):
     print(f"Max price: {max_price}")
     print(f"Standard deviation of price:{std_price}")
     return None
+
+
+def prepare_features(df): 
+    #Drop "Address"
+    df = df.drop(columns=['address'])
+    #Drop "Type" 
+    df = df.drop(columns=['type'])
+    #Set Basementsent to 0 if NaN
+    df['basement_size'].fillna(0, inplace=True)
+    #Set year_rebuilt to year_built if NaN
+    df['year_rebuilt'].fillna(df['year_built'], inplace=True)
+
+    #Encode Postal Code, and energy_label 
+    df['energy_label'] = df['energy_label'].astype('category').cat.codes
+    df['postal_code'] = df['postal_code'].astype('category').cat.codes
+
+    #Scale the features "size, "rooms", "year_built", "year_rebuilt", "basement_size", "energy_label", "postal_code"
+    scaler = StandardScaler()
+    df[['size', 'rooms', 'year_built', 'year_rebuilt', 'basement_size', 'energy_label', 'postal_code']] = scaler.fit_transform(df[['size', 'rooms', 'year_built', 'year_rebuilt', 'basement_size', 'energy_label', 'postal_code']])
+    return df
+
+
+
+
+def flatten_columns(df, column_name):
+    """Flatten a column of lists into a DataFrame."""
+    try:
+        df = pd.concat([df, df[column_name].apply(pd.Series)], axis=1)
+        #Set the column names of the new columns
+        df = df.drop(columns=[column_name])
+        #Turn the bow-column names into strings
+        df.columns = df.columns.astype(str)
+    except:
+        print(f"Could not flatten column {column_name}")
+    return df
 
 

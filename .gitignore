@@ -21,4 +21,11 @@ nybolig_data.csv
 
 #trained_models
 trained_models/
-```
+
+
+#Add results/runs
+results/
+
+#add vit-base-beans
+vit-base-beans/
+
