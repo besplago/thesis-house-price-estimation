@@ -16,7 +16,7 @@ import seaborn as sns
 from sklearn.metrics import precision_score, recall_score, f1_score
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.cluster import KMeans
-
+from PIL import Image
 import tensorflow as tf
 
 
@@ -117,6 +117,72 @@ def data_to_DF(folder_path:str, max_houses)-> pd.DataFrame:
                 "year_rebuilt", "energy_label", "image_floorplan"])
   return df
 
+#Loads both JSON, floorplan and images 
+def load_data_and_images(folder_path, include_floorplan, include_images, max_houses):
+  data = []
+  iter = 0
+  for subfolder, _, files in os.walk(folder_path):
+    if iter == max_houses:
+      break
+    else:
+      if subfolder == folder_path:
+        continue  # Skip the main folder itself
+
+      # Extract data from JSON file
+      try:
+        with open(os.path.join(subfolder, "data.json"), "r") as f:  
+          json_data = json.load(f)
+      except:
+          print(f"Error loading JSON file for {subfolder}")
+          #Go to the next subfolder
+          continue
+
+      # Extract image paths
+      floorplan_path = os.path.join(subfolder, "0.jpg")
+      image_paths = [os.path.join(subfolder, f"{i}.jpg") for i in range(1, len(files)-2 if len(files) > 1 else 1)]
+      # Read floorplan image (assuming BGR color space)
+      if include_floorplan:
+        try:
+          floorplan = cv2.imread(floorplan_path)
+        except FileNotFoundError:
+          print(f"Floorplan image not found for {subfolder}")
+          floorplan = None
+
+      # Load other image paths as a NumPy array 
+      if include_images: 
+        try:
+          images = [cv2.imread(path) for path in image_paths]
+        except:
+          print(f"Error loading images for {subfolder}")
+          images = None
+
+      # Create dictionary with extracted data
+      data_dict = {
+          "url": json_data["url"],
+          "address": json_data["address"],
+          "postal_code": json_data["postal_code"],
+          "type": json_data["type"],
+          "price": json_data["price"],
+          "size": json_data["size"],
+          "basement_size": json_data["basement_size"],
+          "rooms": json_data["rooms"],
+          "year_built": json_data["year_built"],
+          "year_rebuilt": json_data["year_rebuilt"],
+          "energy_label": json_data["energy_label"],
+          "image_floorplan": floorplan if include_floorplan else None,
+          "images": images if include_images else None,
+      }
+      # Append data dictionary to the list
+      data.append(data_dict)
+    iter += 1    
+
+  # Create DataFrame from the list of dictionaries
+  df = pd.DataFrame(data)
+
+  return df
+
+
+
 
 ###### FEATURE PROCESSING ######
 def preprocces_data(df: pd.DataFrame)-> pd.DataFrame:
@@ -126,7 +192,7 @@ def preprocces_data(df: pd.DataFrame)-> pd.DataFrame:
   #df = df.drop(columns=["address"])
   #Feature Columns
   df['basement_size'] = df["basement_size"].fillna(0)
-  df['year_rebuilt'] = df['year_rebuilt'].where(~df['year_rebuilt'].isna(), df['year_built']).astype(int)
+  df['year_rebuilt'] = df['year_rebuilt'].where(~df['year_rebuilt'].isna(), df['year_built'])
   #df['type'] = df['type'].astype('category').cat.codes
   df['energy_label'] = df['energy_label'].astype('category').cat.codes
   #data.dropna(inplace=True)
@@ -250,14 +316,24 @@ def label_low_med_high(df: pd.DataFrame, onehot:bool)-> pd.DataFrame:
 
 ###### IMAGE PREPROCESSING ######
 def resize_images(df, column_name:str, width:int, height:int)-> np.array:
-  resized_images = np.array([cv2.resize(image, (width, height), interpolation=cv2.INTER_LINEAR) for image in df[column_name]])
+  resized_images = np.array([cv2.resize(image, (width, height), interpolation=cv2.INTER_NEAREST) for image in df[column_name]])
   return resized_images
 
 def convert_to_grayscale(images: np.array)-> np.array:
   gray_images = np.array([cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) for image in images])
   #reshape the images
   gray_images = np.array([image.reshape(image.shape[0], image.shape[1], 1) for image in gray_images])
+  #
+  rgb_images = np.array([cv2.cvtColor(image, cv2.COLOR_GRAY2RGB) for image in gray_images])
   return gray_images
+
+def convert_to_grayscale_rgb(images: np.array)-> np.array:
+  gray_images = np.array([cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) for image in images])
+  #reshape the images
+  gray_images = np.array([image.reshape(image.shape[0], image.shape[1], 1) for image in gray_images])
+  #
+  rgb_images = np.array([cv2.cvtColor(image, cv2.COLOR_GRAY2RGB) for image in gray_images])
+  return rgb_images
 
 def threshold_images(images: np.array)-> np.array:
   image_shape = images[0].shape
@@ -272,6 +348,7 @@ def threshold_images(images: np.array)-> np.array:
   return thresholded_images
 
 def preprocess_images(df:pd.DataFrame, column_name:str, width:int, height:int, resize:bool, gray_scale:bool, threshhold:bool)-> np.array:
+  images = df[column_name]
   if resize:
     images = resize_images(df, column_name, width, height)
   if gray_scale:
@@ -279,6 +356,55 @@ def preprocess_images(df:pd.DataFrame, column_name:str, width:int, height:int, r
   if threshhold:
     images = threshold_images(images)
   return images
+
+
+def scale_by_size(canvas_size, house_size, max_house_size, image):
+  """
+  Create a canvaz, and fit the image corresponding to the house size on the canvas and max_house_size
+  """
+  #Create a canvas
+  canvas = np.ones((canvas_size, canvas_size, 3), dtype=np.uint8)
+  #Scale the image
+  scale = (house_size/max_house_size) #<- Magic variable 
+  print(scale)
+  new_width = int(image.shape[1] * scale)
+  new_height = int(image.shape[0] * scale)
+  #Resize the image
+  resized_image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_NEAREST)
+  #Place the image in the center of the canvas
+  x_offset = int((canvas_size - new_width) / 2)
+  y_offset = int((canvas_size - new_height) / 2)
+  canvas[y_offset:y_offset+resized_image.shape[0], x_offset:x_offset+resized_image.shape[1]] = resized_image
+  #invert the colors
+  canvas = cv2.bitwise_not(canvas)
+  return canvas
+  
+
+def scale_by_size(canvas_size, house_sizes, images, max_house_size):
+  """
+  Create a canvaz, and fit the images corresponding to the house size on the canvas and max_house_size
+  """
+  canvases = []
+  for house_size, image in zip(house_sizes, images):
+    #Create a canvas
+    canvas = np.ones((canvas_size, canvas_size, 3), dtype=np.uint8)
+    #Scale the image
+    scale = (house_size/max_house_size)
+    new_width = int(image.shape[1] * scale)
+    new_height = int(image.shape[0] * scale)
+    #Resize the image
+    resized_image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_NEAREST)
+    #Place the image in the center of the canvas
+    x_offset = int((canvas_size - new_width) / 2)
+    y_offset = int((canvas_size - new_height) / 2)
+    canvas[y_offset:y_offset+resized_image.shape[0], x_offset:x_offset+resized_image.shape[1]] = resized_image
+    #invert the colors
+    canvas = cv2.bitwise_not(canvas)
+    canvases.append(canvas)
+  return canvases
+  
+  
+
 
 
 ###### MODEL UTILS #######
@@ -361,9 +487,6 @@ def label_score(predicted_labels, actual_labels):
   return None  
 
 
-
-
-
 #SIFT-Features
 def get_sift_features(image):
   #Convert to image 
@@ -379,7 +502,7 @@ def display_sift_features(image, kp):
   plt.imshow(img)
   plt.show()
 
-def create_bow_representation(images, k=100):
+def create_bow_representation(images, k=25):
   """
   Creates a Bag-of-Visual-Words representation for a set of images.
 
@@ -398,7 +521,6 @@ def create_bow_representation(images, k=100):
     _, descriptors = sift.detectAndCompute(image, None)
     all_descriptors.extend(descriptors)
 
-
   kmeans = KMeans(n_clusters=k, random_state=0)
   kmeans.fit(all_descriptors)
 
@@ -416,8 +538,84 @@ def create_bow_representation(images, k=100):
 
 
 
-
 #Room Classification
 def classify_room(pipe, image):
-  room = pipe.predict([image])
-  return room
+  image_PIL = Image.fromarray(image)
+  room_predictions = pipe.predict([image_PIL])
+  #print("Room Predcitions", room_predictions)
+  best_pred = room_predictions[0][0]
+  #print("Best Prediction", best_pred)
+  score = best_pred['score']
+  label = best_pred['label']
+  #print("Score:",score, "Label", label)
+  return label, score
+
+def find_rooms(images, pipe, room, threshold):
+  #Loop through images, and find the room. Return the Room with the highest score
+  #or empty None if no room is found
+
+  advanced = False
+  if advanced:
+    room_images = []
+    for image in images:
+      label, score = classify_room(pipe, image)
+      if label == room and score > threshold:
+        room_images.append((image, score))
+    if len(room_images) > 0:
+      room_images.sort(key=lambda x: x[1], reverse=True)
+      return room_images[0][0]
+    else:
+      return np.zeros((100,100,3), dtype=np.uint8)
+    
+  else:
+    #find room with score above threshold, return the first one
+    for image in images:
+      label, score = classify_room(pipe, image)
+      print(label, room)
+      print(label==room)
+      print(score, threshold)
+      if label == room and score > threshold:
+        print("YEEESSSIIIR")
+        return image
+    return np.zeros((100,100,3), dtype=np.uint8)
+  
+def find_rooms_create_image(images, pipe, threshold):
+  #Loop through images and find "Kitchen", "Living Room", "Bedroom", "Bathroom". 
+  #Create a 2x2 image with the four rooms.
+  #If some rooms are not found, fill the spot with a black image.
+  #ONly accept the image if "score" is above 0.6
+  #Stop when we have found all four rooms. Or if we have looped through all images.
+  #Make it a dict with the room as key and the image as value
+  rooms = ["Kitchen", "Living Room", "Bedroom", "Bathroom"]
+  found_rooms = {}
+  room_images = {}
+  room_scores = {}
+  for image in images:
+    label, score = classify_room(pipe, image)
+    if score > threshold and label in rooms:
+      if label not in room_scores:
+        room_scores[label] = score
+        room_images[label] = image
+        print("First image of", label, "   Score", score)
+        plt.imshow(image)
+        plt.show()
+      elif score > room_scores[label]:
+        room_scores[label] = score
+        room_images[label] = image
+        print("Updating image of", label, "   Score", score)
+        plt.imshow(image)
+        plt.show()
+      found_rooms[label] = True
+      
+
+  for room in rooms:
+    if room not in room_images:
+      found_rooms[room] = False
+      room_images[room] = np.zeros((100,100,3), dtype=np.uint8)
+      found_all_rooms = False
+  return room_images['Kitchen'], room_images['Living Room'], room_images['Bedroom'], room_images['Bathroom']
+
+
+
+
+  
