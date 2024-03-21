@@ -45,29 +45,28 @@ class House:
     self.predicted_price = None
 
 
-def load_jpg_and_json(folder_path:str) -> (dict, np.ndarray):
+def load_jpg_and_json(folder_path:str) -> tuple[dict, np.array]:
   files = os.listdir(folder_path)
   jpg_file_path = None
   json_file_path = None
 
-  # Find the jpg and json file in the folder
-  for filename in files:
-    if filename.endswith(".jpg"):
-      jpg_file_path = os.path.join(folder_path, filename)
-    elif filename.endswith(".json"):
-      json_file_path = os.path.join(folder_path, filename)
+  # Find "0.jpg" and "data.json" specifically
+  for file in files:
+    if file == "0.jpg":
+      jpg_file_path = os.path.join(folder_path, file)
+    elif file == "data.json":
+      json_file_path = os.path.join(folder_path, file)
 
   # Load the jpg
   image_data = cv2.imread(jpg_file_path)
-  # Load the json
-  with open(json_file_path, "r", encoding="utf-8") as file:
-    json_data = json.load(file)
-
   if image_data is None:
     raise Exception(f"Error loading image {jpg_file_path}")
-  if json_data is None:
-    raise Exception(f"Error loading json {json_file_path}")
-
+  # Load the json
+  try:
+    with open(json_file_path, "r", encoding="utf-8") as file:
+      json_data = json.load(file)
+  except Exception as e:
+    raise Exception(f"Error loading json {json_file_path}: {e}")
   return json_data, image_data
 
 def create_house_instance(json_data, jpg): 
@@ -91,21 +90,36 @@ def create_house_instance(json_data, jpg):
 def load_houses(folder_path: str, max_houses: int = None):
     houses = []
     count = 0  # Counter to track the number of loaded houses
+    errors: dict = {}
     for folder in os.listdir(folder_path):
         if max_houses is not None and count >= max_houses:
             break  # Stop loading houses if the maximum number is reached
+        # json_data, jpg = load_jpg_and_json(os.path.join(folder_path, folder))
+        # house = create_house_instance(json_data, jpg)
+        # houses.append(house)
+        # count += 1
         try:
             json_data, jpg = load_jpg_and_json(os.path.join(folder_path, folder))
             house = create_house_instance(json_data, jpg)
             houses.append(house)
             count += 1
         except Exception as e:
+            # Add a count to the error
+            # If the error has not been encountered before, add it to the dictionary
+            error_str = str(e)
+            if error_str in errors:
+                errors[error_str] += 1
+            else:
+                errors[error_str] = 1
             continue
-            #print(f"Error loading house {folder}: {e}")
+    if errors:
+        print("Errors encountered while loading houses:")
+        for error, count in errors.items():
+            print(f"{error}: {count} times")
     return houses
 
 #If we want to work with a DF 
-def data_to_DF(folder_path:str, max_houses)-> pd.DataFrame:
+def data_to_DF(folder_path:str, max_houses: int = None)-> pd.DataFrame:
   houses = load_houses(folder_path, max_houses)
   data = []
   for house in houses:
