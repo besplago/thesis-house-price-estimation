@@ -500,6 +500,39 @@ def label_score(predicted_labels, actual_labels):
   plt.show()
   return None  
 
+def label_score_softmax(softmax_labels, actual_labels): 
+  """
+  Evaluate the softmax predictions, based on how far from actual they are
+  Actual labels: Onehot-encoded
+  """
+  #Get the predicted labels
+  predicted_labels = np.argmax(softmax_labels, axis=1)
+  #Get the actual labels
+  actual_labels = np.argmax(actual_labels, axis=1)
+  #Get the accuracy
+  accuracy = accuracy_score(actual_labels, predicted_labels)
+  #Get the precision
+  precision = precision_score(actual_labels, predicted_labels, average='weighted')
+  #Get the recall
+  recall = recall_score(actual_labels, predicted_labels, average='weighted')
+  #Get the f1-score
+  f1 = f1_score(actual_labels,
+                predicted_labels, average='weighted')
+  
+  print(f"Accuracy: {accuracy:.2f}")
+  print(f"Precision: {precision:.2f}")
+  print(f"Recall: {recall:.2f}")
+  print(f"f1: {f1:.2f}")
+
+
+  cm = confusion_matrix(predicted_labels, actual_labels)
+  sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
+  plt.xlabel("Predicted")
+  plt.ylabel("Actual")
+  plt.show()
+  return None
+  
+
 
 #SIFT-Features
 def get_sift_features(image):
