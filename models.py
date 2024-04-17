@@ -20,7 +20,6 @@ from tensorflow.keras import layers
 from tensorflow.keras.layers import Input, Concatenate
 from tensorflow.keras import regularizers
 
-
 from keras import losses, Model
 
 from xgboost import XGBRegressor
@@ -28,6 +27,17 @@ from vit_keras import vit, utils
 from sklearn.preprocessing import StandardScaler
 from utils import plot_regression_results, regression_stats, feature_importance, prepare_features, eval_model
 from img_utils import preprocess_images, create_bow_representation
+
+from tensorflow.keras.applications import MobileNet, MobileNetV3Large, MobileNetV3Small, MobileNetV2
+from tensorflow.keras.applications import ResNet50, ResNet101, ResNet152, ResNet50V2
+from tensorflow.keras.applications import InceptionV3, InceptionResNetV2
+from tensorflow.keras.applications import DenseNet121, DenseNet169, DenseNet201
+from tensorflow.keras.applications import VGG16, VGG19
+from tensorflow.keras.applications import NASNetLarge, NASNetMobile
+from tensorflow.keras.applications import EfficientNetB0, EfficientNetB1, EfficientNetB2, EfficientNetB3, EfficientNetB4, EfficientNetB5, EfficientNetB6, EfficientNetB7
+from tensorflow.keras.applications import EfficientNetV2B0, EfficientNetV2M, EfficientNetV2L
+from tensorflow.keras.applications import EfficientNetV2S, EfficientNetV2M, EfficientNetV2L
+from tensorflow.keras.applications import NASNetMobile, NASNetLarge
 
 #### Feature Models ####
 def RF(x_train, y_train, x_test, y_test): 
@@ -110,7 +120,7 @@ def neural_network(x_train, y_train, x_test, y_test):
 
 
 #### Image Models ####
-def CNN_model(pretrained_model, train_images, y_train, validation_images, y_valid):
+def CNN_model(pretrained_model, custom_layers,  train_images, y_train, validation_images, y_valid):
   #Load the Pretrained Model
   target_width = train_images[0].shape[0]
   target_height = train_images[0].shape[1]
@@ -122,19 +132,28 @@ def CNN_model(pretrained_model, train_images, y_train, validation_images, y_vali
     layer.trainable = False
 
   # Create the model with the pretrained model and a new classification layer
-  model = Sequential([
-    base_model,
-    Flatten(),
-    Dense(512, activation='relu', kernel_regularizer=regularizers.l1(0.01)),
-    BatchNormalization(),
-    layers.Dropout(0.1),
-    Dense(256, activation='relu', kernel_regularizer=regularizers.l1(0.05)),
-    layers.Dropout(0.1), 
-    Dense(1, activation='linear')
-  ])
+  if custom_layers:
+    model = Sequential([
+      base_model,
+      Flatten(),
+      Dense(512, activation='relu', kernel_regularizer=regularizers.l1(0.01)),
+      #BatchNormalization(),
+      layers.Dropout(0.1),
+      Dense(256, activation='relu', kernel_regularizer=regularizers.l1(0.01)),
+      layers.Dropout(0.1), 
+      Dense(128, activation='relu'),
+      Dense(64, activation='relu'),
+      Dense(1, activation='linear')
+    ])
+  else:
+    model = Sequential([
+      base_model,
+      Flatten(),
+      Dense(1, activation='linear')
+    ])
 
   #Check which type of model we are building
-  model.compile(optimizer=Adam(learning_rate=0.002), 
+  model.compile(optimizer='Adam', 
                 loss='mean_absolute_error', 
                 metrics=['mean_absolute_error'])
     
@@ -144,44 +163,11 @@ def CNN_model(pretrained_model, train_images, y_train, validation_images, y_vali
   y_train,
   epochs=150, 
   validation_data=(validation_images, y_valid), 
-  callbacks=[EarlyStopping(patience=20, restore_best_weights=True)],
+  callbacks=[EarlyStopping(patience=5, restore_best_weights=True)],
   )
   return model, fit_history
 
-def CNN_Model_Simple(pretrained_model, train_images, y_train, validation_images, y_valid):
-  #Load the Pretrained Model
-  target_width = train_images[0].shape[0]
-  target_height = train_images[0].shape[1]
-  input_shape = (target_width, target_height, 3)
-  base_model = pretrained_model(weights="imagenet", include_top=False, input_shape = input_shape) 
-
-  # Freeze the pretrained weights
-  for layer in base_model.layers:
-    layer.trainable = False
-
-  # Create the model with the pretrained model and a new classification layer
-  model = Sequential([
-    base_model,
-    Dense(512, activation='relu', kernel_regularizer=regularizers.l1(0.01)),
-    Flatten(),
-    Dense(1, activation='linear')
-  ])
-
-  #Check which type of model we are building
-  model.compile(optimizer=Adam(learning_rate=0.03), 
-                loss='mean_absolute_error', 
-                metrics=['mean_absolute_error'])
-    
-  #Fit the model 
-  fit_history = model.fit(
-  train_images, 
-  y_train,
-  epochs=150, 
-  validation_data=(validation_images, y_valid), 
-  callbacks=[EarlyStopping(patience=20, restore_best_weights=True)],
-  )
-  return model, fit_history  
-
+ 
 def N_CNN_model(pretrained_model, train_images, y_train, validation_images, y_valid, n): 
   #Step 1: Make N splits 
   splits = list(zip(np.array_split(train_images, n), np.array_split(y_train, n)))
@@ -194,7 +180,6 @@ def N_CNN_model(pretrained_model, train_images, y_train, validation_images, y_va
     model, fit_history = CNN_model(pretrained_model, train_images, y_train, validation_images, y_valid)
     models.append(model)
   return models
-
 
 def CNN_model_labels(pretrained_model, num_labels,  train_images, y_train, validation_images, y_valid):
   #Turn y
@@ -308,6 +293,9 @@ def BoVW_RF_model(train_images, y_train, test_images, y_test):
   # Use the RF function with the BoVW representation
   RF(train_images_bow, y_train, test_images_bow, y_test)
 
+
+
+
 #### AutoEncoder ####
 class Denoise(Model):
   def __init__(self):
@@ -363,6 +351,10 @@ def autoEncoder(train_images):
                   shuffle=True,
                   validation_data=(test_img, test_img))
   return autoencoder
+
+
+
+
 
 
 #### Ensemble Models ####
