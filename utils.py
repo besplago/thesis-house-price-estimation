@@ -34,8 +34,7 @@ def plot_regression_results(model_name, y_test, y_pred):
     plt.title(f'True values vs Predictions ({model_name})')
     plt.colorbar(label='Distance from Diagonal')
     plt.legend(['Test values', 'Perfect fit'])
-    #Scale the image to small size
-    plt.gcf().set_size_inches(3, 3)
+    # plt.gcf().set_size_inches(3, 3)
 
     plt.show()
 
@@ -50,9 +49,57 @@ def plot_regression_results(model_name, y_test, y_pred):
     plt.ylabel('Residuals')
     plt.colorbar(label='Distance from Diagonal')
     plt.legend(['Residuals', 'Perfect fit'])
-    plt.gcf().set_size_inches(3, 3)
+    # plt.gcf().set_size_inches(3, 3)
     plt.show()
     return None
+
+def plot_regression_results_outliers(model_name: str, y_test: np.ndarray, y_pred: np.ndarray, n_outliers: int = 5):
+    """
+    Plot the results of a regression model with outliers highlighted.
+    
+    Args:
+        model_name: str, name of the model
+        y_test: array, true values
+        y_pred: array, predicted values
+        n_outliers: int, number of outliers to highlight
+    """
+    # Plotting the test set results
+    plt.scatter(y_test, y_pred)
+
+    # Calculate residuals
+    residuals = y_pred - y_test
+
+    # Calculate distances from the perfect fit line
+    distances = np.abs(y_test - y_pred)
+
+    # Color everything grey
+    colors = np.full_like(distances, fill_value='grey', dtype='object')
+
+    # Highlight the n_outliers largest outliers
+    outlier_indices = np.argsort(-distances)[:n_outliers]
+    for idx in outlier_indices:
+        # Update the colors to highlight the outliers
+        colors[idx] = 'red'
+
+    # Plot true values vs predictions with color gradient
+    plt.scatter(y_test, y_pred, c=colors, edgecolors='k')
+    plt.xlabel('True values')
+    plt.ylabel('Predictions')
+    # Plot the perfect fit line
+    plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], c='r')
+    # Name the perfect fit line
+    plt.title(f'True values vs Predictions ({model_name})\n{n_outliers} largest outliers highlighted')
+    plt.legend(['Test values', 'Perfect fit'])
+    plt.show()
+
+    # Plot residuals
+    plt.scatter(y_pred, residuals, c=colors, edgecolors='k')
+    plt.hlines(y=0, xmin=y_test.min(), xmax=y_test.max(), colors='r')
+    plt.xlabel('Predicted values')
+    plt.ylabel('Residuals')
+    plt.title(f'Residual plot ({model_name})\n{n_outliers} largest outliers highlighted')
+    plt.legend(['Residuals', 'Perfect fit'])
+    plt.show()
 
 def regression_stats(y_test, y_pred):
     """Calculate regression statistics."""
