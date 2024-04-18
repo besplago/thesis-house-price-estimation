@@ -6,7 +6,6 @@ import cv2
 import numpy as np
 import tensorflow as tf
 import pandas as pd
-import matplotlib.pyplot as plt
 from IPython.display import display
 
 from sklearn.model_selection import train_test_split
@@ -34,7 +33,7 @@ from utils import (
     prepare_features,
     eval_model,
 )
-from img_utils import preprocess_images, create_bow_representation, set_gpu, data_to_df
+from img_utils import preprocess_images, create_bow_representation, set_gpu, data_to_df, set_cpu
 
 from tensorflow.keras.applications import (
     MobileNet,
@@ -70,8 +69,6 @@ from tensorflow.keras.applications import (
 from tensorflow.keras.applications import NASNetMobile, NASNetLarge
 
 
-
-
 #### Feature Models ####
 def RF(x_train, y_train, x_test, y_test):
     from sklearn.ensemble import RandomForestRegressor
@@ -84,14 +81,14 @@ def RF(x_train, y_train, x_test, y_test):
     param_grid = {
         "n_estimators": [100, 200, 400, 800],  # Number of trees in the forest
         "max_depth": [5, 10, 15, 20, 40],  # Maximum depth of individual trees
-        "min_samples_split": [2, 4, 8, 16]  # Minimum samples required to split a node
+        "min_samples_split": [2, 4, 8, 16],  # Minimum samples required to split a node
     }
-    #model = RandomForestRegressor(n_estimators=100, max_depth=10)
+    # model = RandomForestRegressor(n_estimators=100, max_depth=10)
     model = GridSearchCV(RandomForestRegressor(), param_grid, cv=5)
     model.fit(x_train, y_train)
-    #best_model = model.best_estimator_
-    #print("Params for model", model.best_params_)
-    #eval_model(best_model, x_test, y_test)
+    # best_model = model.best_estimator_
+    # print("Params for model", model.best_params_)
+    # eval_model(best_model, x_test, y_test)
     eval_model(model, x_test, y_test)
     return model
 
@@ -173,11 +170,7 @@ def CNN_model(
     y_train: np.array,
     validation_images: np.array,
     y_valid: np.array,
-    use_gpu: bool = False,
 ):
-    if use_gpu:
-        set_gpu()
-
     # Load the Pretrained Model
     target_width = train_images[0].shape[0]
     target_height = train_images[0].shape[1]
@@ -226,14 +219,14 @@ def CNN_model(
 
 
 def N_CNN_model(
-        # pretrained_model, train_images, y_train, validation_images, y_valid, n
-        pretrained_model: object,
-        train_images: np.array,
-        y_train: np.array,
-        validation_images: np.array,
-        y_valid: np.array,
-        n: int
-    ):
+    # pretrained_model, train_images, y_train, validation_images, y_valid, n
+    pretrained_model: object,
+    train_images: np.array,
+    y_train: np.array,
+    validation_images: np.array,
+    y_valid: np.array,
+    n: int,
+):
     # Step 1: Make N splits
     splits = list(zip(np.array_split(train_images, n), np.array_split(y_train, n)))
     # Step 2: Train N models. Model(i) is trained on n-1 splits
@@ -1086,30 +1079,3 @@ def SIFT(
     # Train a Random Forest Regressor
     rf = RF(train_descriptors_np, train_y, test_descriptors_np, test_y)
     return None
-
-
-# def main():
-#     #Load Data
-#     # Train data
-#     train_1_path: str = "../nybolig_scrape/output/train/train_1"
-#     train_2_path: str = "../nybolig_scrape/output/train/train_2"
-#     valid_path: str = "../nybolig_scrape/output/valid"
-#     test_path: str = "../nybolig_scrape/output/test"
-
-#     train1_df, train2_df, valid_df, test_df = data_to_df(train_1_path, train_2_path, valid_path, test_path, preproccess=True)
-
-#     #Train Model 
-
-#     #Save model 
-
-#     #Save Training History
-
-#     #Export Model Architecture
-    
- 
-#     pass
-
-
-
-# if __name__ == "__main__":
-#     main()

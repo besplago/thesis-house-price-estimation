@@ -101,6 +101,7 @@ def plot_regression_results_outliers(model_name: str, y_test: np.ndarray, y_pred
     plt.legend(['Residuals', 'Perfect fit'])
     plt.show()
 
+
 def regression_stats(y_test, y_pred):
     """Calculate regression statistics."""
     from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
