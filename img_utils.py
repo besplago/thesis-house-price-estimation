@@ -223,7 +223,7 @@ def data_to_df(folder_paths: list[str], preprocess: bool = True) -> list[pd.Data
     """
     dfs = []
     
-    for folder_path in tqdm(folder_paths, desc="Loading folders"):
+    for folder_path in folder_paths:
         houses = load_houses(folder_path)
         data = []
         

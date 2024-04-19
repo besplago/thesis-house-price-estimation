@@ -28,8 +28,8 @@ from vit_keras import vit, utils
 from sklearn.preprocessing import StandardScaler
 from utils import (
     plot_regression_results,
-    regression_stats,
-    feature_importance,
+    plot_regression_stats,
+    plot_feature_importance,
     prepare_features,
     eval_model,
 )
@@ -114,9 +114,9 @@ def XGB(x_train, y_train, x_test, y_test):
         objective="reg:squarederror",
         enable_categorical=True,
     )
-    model.fit(x_train, y_train)
+    fit_history = model.fit(x_train, y_train)
     eval_model(model, x_test, y_test)
-    return model
+    return model, fit_history
 
 
 def neural_network(x_train, y_train, x_test, y_test):
@@ -144,7 +144,7 @@ def neural_network(x_train, y_train, x_test, y_test):
         metrics=["mean_absolute_error"],
     )
 
-    model.fit(
+    fit_history = model.fit(
         x_train,
         y_train,
         epochs=300,
@@ -158,7 +158,7 @@ def neural_network(x_train, y_train, x_test, y_test):
     print("Test score: ", model.evaluate(x_test, y_test))
     y_pred = model.predict(x_test).flatten()
     eval_model(y_test, y_pred)
-    return model
+    return model, fit_history
 
 
 #### Image Models ####
@@ -231,6 +231,7 @@ def N_CNN_model(
     splits = list(zip(np.array_split(train_images, n), np.array_split(y_train, n)))
     # Step 2: Train N models. Model(i) is trained on n-1 splits
     models = []
+    fit_histories = []
     for i in range(n):
         # Train the model on n-1 splits
         train_images = np.concatenate(
@@ -241,7 +242,8 @@ def N_CNN_model(
             pretrained_model, True, train_images, y_train, validation_images, y_valid
         )
         models.append(model)
-    return models
+        fit_histories.append(fit_history)
+    return models, fit_histories
 
 
 def CNN_model_labels(
