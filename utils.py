@@ -101,7 +101,6 @@ def plot_regression_results_outliers(model_name: str, y_test: np.ndarray, y_pred
     plt.legend(['Residuals', 'Perfect fit'])
     plt.show()
 
-
 def regression_stats(y_test, y_pred):
     """Calculate regression statistics."""
     from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
@@ -173,17 +172,17 @@ def prepare_features(df):
     df = df[df['type'] == 'ejerlejlighed']
     df = df.drop(columns=['address'])
     df = df.drop(columns=['type'])
+    df = df.drop(columns=['url'])    
     df['basement_size'].fillna(0, inplace=True)
     df['year_rebuilt'].fillna(df['year_built'], inplace=True)
     df['energy_label'] = df['energy_label'].astype('category').cat.codes
     df['postal_code'] = df['postal_code'].astype('category').cat.codes
     
-    scaler = StandardScaler()
-    df[['size', 'rooms', 'year_built', 'year_rebuilt', 'basement_size', 'energy_label', 'postal_code']] = scaler.fit_transform(df[['size', 'rooms', 'year_built', 'year_rebuilt', 'basement_size', 'energy_label', 'postal_code']])
+    #scaler = StandardScaler()
+    #df[['size', 'rooms', 'year_built', 'year_rebuilt', 'basement_size', 'energy_label', 'postal_code']] = scaler.fit_transform(df[['size', 'rooms', 'year_built', 'year_rebuilt', 'basement_size', 'energy_label', 'postal_code']])
     # scaler = StandardScaler()
     # df['price'] = scaler.fit_transform(df[['price']])
     
-
     df.dropna(inplace=True)
     df = remove_outliers(df, 'price')
     df = df.dropna()
@@ -213,7 +212,6 @@ def print_DF_price_stats(df):
     print(f"Max price: {max_price}")
     print(f"Standard deviation of price:{std_price}")
     return None
-
 
 def describe_df(df): 
     display(df.describe())

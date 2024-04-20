@@ -589,6 +589,7 @@ def N_CNN_RF_model(
 
 
 def CNN_AE_RF_model(
+        
     image_model,
     train_images,
     train_features,
