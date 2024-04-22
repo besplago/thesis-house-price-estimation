@@ -727,7 +727,6 @@ def CNN_MLP_model(
 
     return model, fit_history
 
-
 ################# LEGACY / Not in USE ###################
 def CNN_confidence_model(
     CNN_model, train_images, validation_images, test_images, y_train, y_valid, y_test
