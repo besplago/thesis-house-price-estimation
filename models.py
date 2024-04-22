@@ -73,6 +73,10 @@ from tensorflow.keras.applications import NASNetMobile, NASNetLarge
 def RF(x_train, y_train, x_test, y_test):
     from sklearn.ensemble import RandomForestRegressor
 
+    # Format the 4-dimensional input to 2-dimensional
+    x_train = x_train.reshape(x_train.shape[0], -1)
+    x_test = x_test.reshape(x_test.shape[0], -1)
+
     print("Running RF on Features:")
     try:
         display(x_train.head(1))
@@ -85,12 +89,14 @@ def RF(x_train, y_train, x_test, y_test):
     }
     # model = RandomForestRegressor(n_estimators=100, max_depth=10)
     model = GridSearchCV(RandomForestRegressor(), param_grid, cv=5)
-    model.fit(x_train, y_train)
+    print("Fitting the model...")
+    fit_history = model.fit(x_train, y_train)
+    print("Best params for model", model.best_params_)
     # best_model = model.best_estimator_
     # print("Params for model", model.best_params_)
     # eval_model(best_model, x_test, y_test)
-    eval_model(model, x_test, y_test)
-    return model
+    # eval_model(model, x_test, y_test)
+    return model, fit_history
 
 
 def SVC(x_train, y_train, x_test, y_test):
