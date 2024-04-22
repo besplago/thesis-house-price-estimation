@@ -15,6 +15,7 @@ __pycache__/
 # Models
 *_model/
 vision_models/
+models/
 
 # Misc
 nybolig_data.csv
