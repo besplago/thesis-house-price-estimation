@@ -48,7 +48,6 @@ def plot_scatter(df, column1, column2):
   plt.ylabel(column2)
   plt.show()
 
-
 def plot_heatmap(df):
   plt.figure(figsize=(12, 10))
   #sns.heatmap(df.corr(), annot=True, cmap='coolwarm')
