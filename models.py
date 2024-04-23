@@ -356,107 +356,6 @@ def CNN_RF_model(
     CNN_RF_.fit(train_images, train_features, train_y)
     return CNN_RF_
 
-
-
-def CNN_RF_model_V2(
-    CNN_model,
-    RF_model,
-    train_images,
-    train_features,
-    train_prices,
-    test_images,
-    test_features,
-    test_prices,
-):
-    # If image_predictions exists in either train_features or test_features, drop them
-    try:
-        train_features = train_features.drop(columns=["image_predictions"])
-    except:
-        pass
-    try:
-        train_features = train_features.drop(columns=["reconstruction_error"])
-    except:
-        pass
-    try:
-        test_features = test_features.drop(columns=["image_predictions"])
-    except:
-        pass
-    try:
-        test_features = test_features.drop(columns=["reconstruction_error"])
-    except:
-        pass
-
-    # Get the image predictions
-    CNN_train = CNN_model.predict(train_images).flatten()
-    RF_train = RF_model.predict(train_features)
-
-    CNN_test = CNN_model.predict(test_images).flatten()
-    RF_test = RF_model.predict(test_features)
-
-    # Concatenate the predictions
-    train_input = np.column_stack((CNN_train, RF_train))
-    test_input = np.column_stack((CNN_test, RF_test))
-    # Train the model
-
-    train_input_without_img_pred = RF_train
-
-    RF_model = RF(train_input, train_prices, test_input, test_prices)
-    return RF_model
-
-
-def N_CNN_RF_model(
-    image_models,
-    train_images,
-    train_features,
-    train_y,
-    test_images,
-    test_features,
-    test_y,
-):
-    # Make n-splits
-    n = len(image_models)
-    train_splits = list(
-        zip(
-            np.array_split(train_images, n),
-            np.array_split(train_features, n),
-            np.array_split(train_y, n),
-        )
-    )
-    test_splits = list(
-        zip(
-            np.array_split(test_images, n),
-            np.array_split(test_features, n),
-            np.array_split(test_y, n),
-        )
-    )
-
-    train_image_predictions = []
-    test_image_predictions = []
-    for i in range(n):
-        # Make the i'th model predict the i'th split
-        train_image_pred_i = image_models[i].predict(train_splits[i][0]).flatten()
-        test_image_pred_i = image_models[i].predict(test_splits[i][0]).flatten()
-        train_image_predictions.append(train_image_pred_i)
-        test_image_predictions.append(test_image_pred_i)
-
-    test_image_predictions = np.concatenate(test_image_predictions)
-    train_image_predictions = np.concatenate(train_image_predictions)
-
-    # CNN(Image) + Feautures -> RF
-    train_features["image_predictions"] = train_image_predictions
-    test_features["image_predictions"] = test_image_predictions
-    RF_model = RF(train_features, train_y, test_features, test_y)
-
-    train_features = train_features.drop(columns=["image_predictions"])
-    test_features = test_features.drop(columns=["image_predictions"])
-
-    RF_model = RF(train_features, train_y, test_features, test_y)
-    return RF_model
-
-    return RF_model
-
-
-
 class CNN_AE_RF:
     def __init__(self, image_model):
         self.image_model = image_model
@@ -498,6 +397,62 @@ def CNN_AE_RF_model(
     CNN_AE_RF_model = CNN_AE_RF(image_model)
     CNN_AE_RF_model.fit(train_images, train_features, train_y)
     return CNN_AE_RF_model
+
+
+class N_CNN_RF:
+    #Setup a class that train N-models and combines them into a single model. Does not take image model as input
+    def __init__(self, n, base_model):
+        self.models = []
+        self.fit_histories = []
+        self.n = n
+        self.base_model = base_model
+    
+    def fit(self, train_images, train_features, train_y, n):
+        #Step 1: Train N models
+        splits = list(zip(np.array_split(train_images, n), np.array_split(train_y, n)))
+        for i in range(n):
+            # Train the model on n-1 splits
+            train_images_i = np.concatenate(
+                [split[0] for j, split in enumerate(splits) if j != i]
+            )
+            train_y_i = np.concatenate([split[1] for j, split in enumerate(splits) if j != i])
+            valid_images_i = np.concatenate(
+                [split[0] for j, split in enumerate(splits) if j == i])
+            y_valid_i = np.concatenate([split[1] for j, split in enumerate(splits) if j == i])
+
+            image_model, fit_history = CNN_model(
+                self.base_model, True, train_images_i, train_y_i, valid_images_i, y_valid_i)
+            
+            self.models.append(image_model)
+            self.fit_histories.append(fit_history)
+        #Step 2: Combine the models into a single model.
+        img_pred = np.mean([model.predict(train_images) for model in self.models])
+        input = np.column_stack((img_pred, train_features))
+        self.model = RandomForestRegressor(n_estimators=100, max_depth=10)
+        self.model.fit(input, train_y)
+
+    def predict(self, test_images, test_features):
+        img_pred = np.mean([model.predict(test_images) for model in self.models])
+        test_input = np.column_stack((img_pred, test_features))
+        return self.model.predict(test_input)
+    
+def N_CNN_RF_model(
+    n,
+    base_model,
+    train_images,
+    train_features,
+    train_y,
+):
+    N_CNN_RF_ = N_CNN_RF(n, base_model)
+    N_CNN_RF_.fit(train_images, train_features, train_y, n)
+    return N_CNN_RF_
+
+
+
+
+
+
+
 
 
 def CNN_MLP_model(
@@ -587,6 +542,76 @@ def CNN_MLP_model(
         callbacks=[EarlyStopping(patience=15, restore_best_weights=True)],
     )
     return combined_model, fit_history
+
+def CNN_RF_model_V2(
+    CNN_model,
+    RF_model,
+    train_images,
+    train_features,
+    train_prices,
+    test_images,
+    test_features,
+    test_prices,
+):
+    # If image_predictions exists in either train_features or test_features, drop them
+    try:
+        train_features = train_features.drop(columns=["image_predictions"])
+    except:
+        pass
+    try:
+        train_features = train_features.drop(columns=["reconstruction_error"])
+    except:
+        pass
+    try:
+        test_features = test_features.drop(columns=["image_predictions"])
+    except:
+        pass
+    try:
+        test_features = test_features.drop(columns=["reconstruction_error"])
+    except:
+        pass
+
+    # Get the image predictions
+    CNN_train = CNN_model.predict(train_images).flatten()
+    RF_train = RF_model.predict(train_features)
+
+    CNN_test = CNN_model.predict(test_images).flatten()
+    RF_test = RF_model.predict(test_features)
+
+    # Concatenate the predictions
+    train_input = np.column_stack((CNN_train, RF_train))
+    test_input = np.column_stack((CNN_test, RF_test))
+    # Train the model
+
+    train_input_without_img_pred = RF_train
+
+    RF_model = RF(train_input, train_prices, test_input, test_prices)
+    return RF_model
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ################# LEGACY / Not in USE ###################
