@@ -10,6 +10,7 @@ from IPython.display import display
 
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV
+from sklearn.ensemble import RandomForestRegressor
 
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Flatten, Dropout
@@ -70,33 +71,33 @@ from tensorflow.keras.applications import NASNetMobile, NASNetLarge
 
 
 #### Feature Models ####
-def RF(x_train, y_train, x_test, y_test):
-    from sklearn.ensemble import RandomForestRegressor
+def RF(x_train, y_train):
+    
 
     # Format the 4-dimensional input to 2-dimensional
-    x_train = x_train.reshape(x_train.shape[0], -1)
-    x_test = x_test.reshape(x_test.shape[0], -1)
-
-    print("Running RF on Features:")
-    try:
-        display(x_train.head(1))
+    try: 
+        x_train = x_train.reshape(x_train.shape[0], -1)
     except:
         pass
-    param_grid = {
-        "n_estimators": [100, 200, 400, 800],  # Number of trees in the forest
-        "max_depth": [5, 10, 15, 20, 40],  # Maximum depth of individual trees
-        "min_samples_split": [2, 4, 8, 16],  # Minimum samples required to split a node
-    }
-    # model = RandomForestRegressor(n_estimators=100, max_depth=10)
-    model = GridSearchCV(RandomForestRegressor(), param_grid, cv=5)
-    print("Fitting the model...")
-    fit_history = model.fit(x_train, y_train)
-    print("Best params for model", model.best_params_)
-    # best_model = model.best_estimator_
-    # print("Params for model", model.best_params_)
-    # eval_model(best_model, x_test, y_test)
-    # eval_model(model, x_test, y_test)
-    return model, fit_history
+    try:
+        x_test = x_test.reshape(x_test.shape[0], -1)
+    except:
+        pass
+
+    #GridSearch
+    gridSearch = False
+    if gridSearch:
+        param_grid = {
+            "n_estimators": [100, 200, 400, 800],  # Number of trees in the forest
+            "max_depth": [5, 10, 15, 20, 40],  # Maximum depth of individual trees
+            "min_samples_split": [2, 4, 8, 16],  # Minimum samples required to split a node
+        }
+        model = GridSearchCV(RandomForestRegressor(), param_grid, cv=5)
+    else:
+        model = RandomForestRegressor(n_estimators=100, max_depth=10)
+
+    model.fit(x_train, y_train)
+    return model
 
 
 def SVC(x_train, y_train, x_test, y_test):
@@ -208,11 +209,13 @@ def CNN_model(
     else:
         model = Sequential([base_model, Flatten(), Dense(1, activation="linear")])
 
+    print("Compiling Model")
     # Check which type of model we are building
     model.compile(
         optimizer="Adam", loss="mean_absolute_error", metrics=["mean_absolute_error"]
     )
 
+    print("Fitting Model")
     # Fit the model
     fit_history = model.fit(
         train_images,
@@ -252,141 +255,6 @@ def N_CNN_model(
     return models, fit_histories
 
 
-def CNN_model_labels(
-    pretrained_model, num_labels, train_images, y_train, validation_images, y_valid
-):
-    # Turn y
-
-    # Load the Pretrained Model
-    target_width = train_images[0].shape[0]
-    target_height = train_images[0].shape[1]
-    input_shape = (target_width, target_height, 3)
-    base_model = pretrained_model(
-        weights="imagenet", include_top=False, input_shape=input_shape
-    )
-
-    # Freeze the pretrained weights
-    for layer in base_model.layers:
-        layer.trainable = False
-
-    # Create the model with the pretrained model and a new classification layer
-    model = Sequential(
-        [
-            base_model,
-            Flatten(),
-            Dense(512, activation="relu", kernel_regularizer=regularizers.l2(0.04)),
-            layers.Dropout(0.3),
-            Dense(256, activation="relu", kernel_regularizer=regularizers.l1(0.04)),
-            layers.Dropout(0.3),
-            Dense(128, activation="relu"),
-            Dense(64, activation="relu"),
-            Dense(num_labels, activation="softmax"),
-        ]
-    )
-
-    # Compile the model
-    model.compile(
-        optimizer=Adam(learning_rate=0.001),
-        loss="categorical_crossentropy",
-        metrics=["accuracy"],
-    )
-
-    # Fit the model
-    fit_history = model.fit(
-        train_images,
-        y_train,
-        epochs=100,
-        validation_data=(validation_images, y_valid),
-        callbacks=[EarlyStopping(patience=5, restore_best_weights=True)],
-    )
-
-    return model
-
-
-def CNN_model_labels_softmax(
-    pretrained_model, num_labels, train_images, y_train, validation_images, y_valid
-):
-    # Load the Pretrained Model
-    target_width = train_images[0].shape[0]
-    target_height = train_images[0].shape[1]
-    input_shape = (target_width, target_height, 3)
-    base_model = pretrained_model(
-        weights="imagenet", include_top=False, input_shape=input_shape
-    )
-
-    # Freeze the pretrained weights
-    for layer in base_model.layers:
-        layer.trainable = False
-
-    # Create the model with the pretrained model and a new classification layer
-    model = Sequential(
-        [
-            base_model,
-            Flatten(),
-            Dense(512, activation="relu", kernel_regularizer=regularizers.l2(0.04)),
-            layers.Dropout(0.3),
-            Dense(256, activation="relu", kernel_regularizer=regularizers.l1(0.04)),
-            layers.Dropout(0.3),
-            Dense(128, activation="relu"),
-            Dense(64, activation="relu"),
-            # Add the softmax layer, with output equal to number of labels
-            Dense(num_labels, activation="softmax"),
-        ]
-    )
-
-    # Compile the model
-    model.compile(
-        optimizer=Adam(learning_rate=0.001),
-        loss="categorical_crossentropy",
-        metrics=["accuracy"],
-    )
-
-    # Fit the model
-    fit_history = model.fit(
-        train_images,
-        y_train,
-        epochs=100,
-        validation_data=(validation_images, y_valid),
-        callbacks=[EarlyStopping(patience=5, restore_best_weights=True)],
-    )
-    return model
-
-
-def ViT_model(train_images, train_prices, validation_images, validation_prices):
-    image_size = 224
-    model = vit.vit_l16(
-        image_size=image_size,
-        activation="linear",
-        include_top=False,
-        pretrained=True,
-        pretrained_top=False,
-    )
-    # model.summary()
-    model.compile(
-        optimizer=Adam(learning_rate=0.005),
-        loss="mean_absolute_error",
-        metrics=["mean_absolute_error"],
-    )
-
-    model.fit(
-        train_images,
-        train_prices,
-        epochs=100,
-        validation_data=(validation_images, validation_prices),
-        callbacks=[EarlyStopping(patience=5, restore_best_weights=True)],
-    )
-    return model
-
-
-def BoVW_RF_model(train_images, y_train, test_images, y_test):
-    k = 100
-    # Create Bag of Visual Words representation
-    train_images_bow = create_bow_representation(train_images, k)
-    test_images_bow = create_bow_representation(test_images, k)
-
-    # Use the RF function with the BoVW representation
-    RF(train_images_bow, y_train, test_images_bow, y_test)
-
 
 #### AutoEncoder ####
 class Denoise(Model):
@@ -394,7 +262,7 @@ class Denoise(Model):
         super(Denoise, self).__init__()
         self.encoder = tf.keras.Sequential(
             [
-                layers.Input(shape=(224, 224, 3)),
+                layers.Input(shape=(448, 448, 3)),
                 layers.Conv2D(16, (3, 3), activation="relu", padding="same", strides=2),
                 layers.Conv2D(8, (3, 3), activation="relu", padding="same", strides=2),
             ]
@@ -431,20 +299,6 @@ class Denoise(Model):
         return reconstruction_errors
 
 
-def find_optimal_threshhold(prices, reconstruction_errors):
-    # Find the optimal threshold
-    thresholds = np.linspace(0, 0.1, 100)
-    best_threshold = 0
-    best_mae = 1000000
-    for threshold in thresholds:
-        predictions = np.where(reconstruction_errors > threshold, 1, 0)
-        mae = np.mean(np.abs(prices - predictions))
-        if mae < best_mae:
-            best_mae = mae
-            best_threshold = threshold
-    return best_threshold
-
-
 def autoEncoder(train_images):
     train_images_scaled = train_images / 255.0
     train_img, test_img = train_test_split(
@@ -464,38 +318,44 @@ def autoEncoder(train_images):
 
 
 #### Ensemble Models ####
+class CNN_RF:
+    def __init__(self, image_model):
+        self.image_model = image_model
+
+
+    #Fit that needs images, features. Predict images, features
+    def fit(self, train_images, train_features, train_y):
+        # Get the image predictions
+        train_image_predictions = self.image_model.predict(train_images).flatten()
+
+        # Concatenate the predictions
+        train_input = np.column_stack((train_image_predictions, train_features))
+
+        # Train the model
+        self.model = RandomForestRegressor(n_estimators=100, max_depth=10)
+        self.feature_importance = self.model.fit(train_input, train_y).feature_importances_
+        self.model.fit(train_input, train_y)
+    
+    def predict(self, test_images, test_features):
+        # Get the image predictions
+        test_image_predictions = self.image_model.predict(test_images).flatten()
+
+        # Concatenate the predictions
+        test_input = np.column_stack((test_image_predictions, test_features))
+
+        # Predict the prices
+        return self.model.predict(test_input)
+
 def CNN_RF_model(
     image_model,
     train_images,
-    train_features,
+    train_features, 
     train_y,
-    test_images,
-    test_features,
-    test_y,
 ):
+    CNN_RF_ = CNN_RF(image_model)
+    CNN_RF_.fit(train_images, train_features, train_y)
+    return CNN_RF_
 
-    scale = StandardScaler()
-    # train_features['image_predictions'] = scale.fit_transform(image_model.predict(train_images))
-    # test_features['image_predictions'] = scale.transform(image_model.predict(test_images))
-    train_features_ = train_features.copy()
-    test_features_ = test_features.copy()
-    train_features_["image_predictions"] = image_model.predict(train_images).flatten()
-    test_features_["image_predictions"] = image_model.predict(test_images).flatten()
-    print("Running RF on features:")
-    display(train_features_.head(1))
-    display(test_features_.head(1))
-    # Run the RF_model on the features
-    RF_CNN_model = RF(train_features_, train_y, test_features_, test_y)
-    # RF_CNN_model = XGB(train_features, train_y, test_features, test_y)
-
-    # Clear the train_features and test_features
-    # train_features = train_features.drop(columns=['image_predictions'])
-    # test_features = test_features.drop(columns=['image_predictions'])
-
-    # Run RF without image_predictrions for comparison
-    RF_without_img_pred = RF(train_features, train_y, test_features, test_y)
-
-    return RF_CNN_model
 
 
 def CNN_RF_model_V2(
@@ -596,50 +456,47 @@ def N_CNN_RF_model(
     return RF_model
 
 
-def CNN_AE_RF_model(
-        
+
+class CNN_AE_RF:
+    def __init__(self, image_model):
+        self.image_model = image_model
+        self.autoEncoder_ = None
+
+    def fit(self, train_images, train_features, train_y):
+        #Calculate the reconstruction error
+        self.autoEncoder_ = autoEncoder(train_images)
+        reconstruction_error = self.autoEncoder_.calculate_error(train_images)
+
+        # Get the image predictions
+        train_image_predictions = self.image_model.predict(train_images).flatten()
+
+        # Concatenate the predictions
+        train_input = np.column_stack((train_image_predictions, reconstruction_error, train_features))
+
+        # Train the model
+        self.model = RandomForestRegressor(n_estimators=100, max_depth=10)
+        self.model.fit(train_input, train_y)
+        self.feature_importance = self.model.fit(train_input, train_y).feature_importances_
+
+    def predict(self, test_images, test_features):
+        # Get the image predictions
+        test_image_predictions = self.image_model.predict(test_images).flatten()
+        reconstruction_error = self.autoEncoder_.calculate_error(test_images)
+
+        # Concatenate the predictions
+        test_input = np.column_stack((test_image_predictions,reconstruction_error, test_features))
+
+        # Predict the prices
+        return self.model.predict(test_input)
+
+def CNN_AE_RF_model(      
     image_model,
     train_images,
     train_features,
     train_y,
-    test_images,
-    test_features,
-    test_y,
 ):
-    # Remove image_predictions if they exist
-    try:
-        train_features = train_features.drop(columns=["image_predictions"])
-    except:
-        pass
-    try:
-        test_features = test_features.drop(columns=["image_predictions"])
-    except:
-        pass
-
-    # Setup the AutoEncoder, and calculate reconstruction error for test and train
-    print("Traning AutoEncoder")
-    autoEncoder_ = autoEncoder(train_images)
-    print("Adding AutoEncoder Reconstruction Error")
-    train_features["reconstruction_error"] = autoEncoder_.calculate_error(train_images)
-    test_features["reconstruction_error"] = autoEncoder_.calculate_error(test_images)
-    print("Adding Image Predictions")
-    # Predic the price using iamge model
-    train_features["image_predictions"] = image_model.predict(train_images)
-    test_features["image_predictions"] = image_model.predict(test_images)
-    print("Running RF Model on feautures:")
-    display(train_features.head(1))
-    display(test_features.head(1))
-    # Run the RF_model on the features
-    CNN_AE_RF_model = RF(train_features, train_y, test_features, test_y)
-
-    # Clear the train_features and test_features
-    train_features = train_features.drop(
-        columns=["reconstruction_error", "image_predictions"]
-    )
-    test_features = test_features.drop(
-        columns=["reconstruction_error", "image_predictions"]
-    )
-
+    CNN_AE_RF_model = CNN_AE_RF(image_model)
+    CNN_AE_RF_model.fit(train_images, train_features, train_y)
     return CNN_AE_RF_model
 
 
@@ -731,7 +588,6 @@ def CNN_MLP_model(
     )
     return combined_model, fit_history
 
-    return model, fit_history
 
 ################# LEGACY / Not in USE ###################
 def CNN_confidence_model(
@@ -1087,3 +943,17 @@ def SIFT(
     # Train a Random Forest Regressor
     rf = RF(train_descriptors_np, train_y, test_descriptors_np, test_y)
     return None
+
+
+def find_optimal_threshhold(prices, reconstruction_errors):
+    # Find the optimal threshold
+    thresholds = np.linspace(0, 0.1, 100)
+    best_threshold = 0
+    best_mae = 1000000
+    for threshold in thresholds:
+        predictions = np.where(reconstruction_errors > threshold, 1, 0)
+        mae = np.mean(np.abs(prices - predictions))
+        if mae < best_mae:
+            best_mae = mae
+            best_threshold = threshold
+    return best_threshold

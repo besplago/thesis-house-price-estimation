@@ -179,7 +179,7 @@ def preprocces_data_old(df: pd.DataFrame) -> pd.DataFrame:
 
 def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
     # Drop "url" column
-    df = df.drop(columns=["url"])
+    df = df.drop(columns=["url", "address"])
 
     # Set the basement_size to 0 if it is NaN
     df["basement_size"] = df["basement_size"].fillna(0)
@@ -195,11 +195,21 @@ def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
     df["energy_label"] = df["energy_label"].astype("category").cat.codes
 
     # Drop rows with "longitude" or "latitude" set to 0
-    df = df[(df["lng"] != 0) & (df["lat"] != 0)]
+    try: 
+        df = df[(df["lng"] != 0) & (df["lat"] != 0)]
 
-    # Turn "lat" and "lng" to floats
-    df["lat"] = df["lat"].astype(float)
-    df["lng"] = df["lng"].astype(float)
+        # Turn "lat" and "lng" to floats
+        df["lat"] = df["lat"].astype(float)
+        df["lng"] = df["lng"].astype(float)
+    except:
+        pass
+
+    try: 
+        df = df[(df['longitude'] != 0) & (df['latitude'] != 0)]
+        df['latitude'] = df['latitude'].astype(float)
+        df['longitude'] = df['longitude'].astype(float)
+    except:
+        pass
 
     # Drop NaN values
     df = df.dropna()
