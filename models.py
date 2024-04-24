@@ -220,7 +220,7 @@ def CNN_model(
     fit_history = model.fit(
         train_images,
         y_train,
-        epochs=150,
+        epochs=1,
         validation_data=(validation_images, y_valid),
         callbacks=[EarlyStopping(patience=5, restore_best_weights=True)],
     )
@@ -446,12 +446,6 @@ def N_CNN_RF_model(
     N_CNN_RF_ = N_CNN_RF(n, base_model)
     N_CNN_RF_.fit(train_images, train_features, train_y, n)
     return N_CNN_RF_
-
-
-
-
-
-
 
 
 

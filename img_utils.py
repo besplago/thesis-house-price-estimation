@@ -249,132 +249,6 @@ def data_to_df(folder_paths: list[str], preprocess: bool = True) -> list[pd.Data
     return dfs
 
 
-##### LABEL ENCODING ######
-def prices_to_n_labels(
-    all_prices: np.array, prices: np.array, n_labels: int
-) -> np.array:
-    """
-    Convert the prices to n_labels
-
-    Args:
-      all_prices(`np.array`): All the prices
-      prices(`np.array`): The prices we want to convert
-      n_labels(`int`): The number of labels we want to convert the prices to
-
-    Returns:
-      `np.array`: The prices converted to n_labels
-    """
-
-    # Calculate the quantiles
-    quantiles = [np.quantile(all_prices, i / n_labels) for i in range(1, n_labels)]
-    print(quantiles)
-
-    labels = [
-        (
-            0
-            if price < quantiles[0]
-            else (
-                n_labels - 1
-                if price > quantiles[-1]
-                else np.argmax([price < quantile for quantile in quantiles])
-            )
-        )
-        for price in prices
-    ]
-    encoder = OneHotEncoder(sparse_output=False)
-    one_hot_labels = encoder.fit_transform(np.array(labels).reshape(-1, 1))
-    return one_hot_labels
-
-
-def price_categories(all_prices, prices) -> np.array:
-    # Calculate quantiles
-    low_quantile = np.quantile(all_prices, 0.33)
-    # print(low_quantile)
-    high_quantile = np.quantile(all_prices, 0.66)
-    # print(high_quantile)
-    labels = [
-        0 if price < low_quantile else 1 if price < high_quantile else 2
-        for price in prices
-    ]
-    encoder = OneHotEncoder(sparse_output=False)
-    one_hot_labels = encoder.fit_transform(np.array(labels).reshape(-1, 1))
-    return one_hot_labels
-
-
-def binary_labels(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Add labels-column to the data-points, based on prices. Simply version
-    """
-    mean = df["price"].mean()
-    df["label"] = df["price"].apply(lambda x: 0 if x > mean else 1)
-    return df
-
-
-def normal_distribution_label(data: pd.DataFrame, num_labels: int) -> pd.DataFrame:
-    """
-    Add labels-column to the data-points, based on prices
-    Creates labels based on a normal distribution around the data.
-    That is, we have more labels the closer we are to the mean price, and less the further away we are.
-    Return a data-Frame with the labels and the label codes.
-    """
-    # We want to predict the price of the house
-    min = data["price"].min()
-    first_quan = data["price"].quantile(0.25)
-    mean = data["price"].mean()
-    third_quan = data["price"].quantile(0.75)
-    max = data["price"].max()
-    # Create a normal distribution of the labels
-    f1 = np.linspace(0, min, round(num_labels * 0.023))
-    f2 = np.linspace(min, first_quan, round(num_labels * 0.14))
-    f3 = np.linspace(first_quan, mean, round(num_labels * 0.34))
-    f4 = np.linspace(mean, third_quan, round(num_labels * 0.34))
-    f5 = np.linspace(third_quan, max, round(num_labels * 0.14))
-    f6 = np.linspace(max, max * 2, round(num_labels * 0.023))
-    potential_labels = np.concatenate((f1, f2, f3, f4, f5, f6))
-
-    # Create the label codes
-    label_codes = [(i, label) for i, label in enumerate(potential_labels)]
-
-    # Create the labels
-    price_labels = []
-    price_bracket = []
-    for price in data["price"]:
-        diff = abs(potential_labels - price)
-        index = np.argmin(diff)
-        price_labels.append(index)
-        left = potential_labels[index - 1] if index > 0 else potential_labels[index]
-        right = (
-            potential_labels[index + 1]
-            if index < len(potential_labels) - 1
-            else potential_labels[index]
-        )
-        price_bracket.append((left, right))
-
-    data["label"] = price_labels
-    data["price_bracket"] = price_bracket
-    return data, label_codes
-
-
-def label_low_med_high(df: pd.DataFrame, onehot: bool) -> pd.DataFrame:
-    """
-    Add labels-column to the data-points, based on prices. THREE labels: low, medium, high
-    """
-    price_ranges = {
-        "low": (0, df["price"].quantile(0.33)),
-        "med": (df["price"].quantile(0.33), df["price"].quantile(0.66)),
-        "high": (df["price"].quantile(0.66), df["price"].max()),
-    }
-
-    def label(price):
-        if price >= price_ranges["low"][0] and price <= price_ranges["low"][1]:
-            return 0
-        elif price >= price_ranges["med"][0] and price <= price_ranges["med"][1]:
-            return 1
-        else:
-            return 2
-
-    df["label_price"] = df["price"].apply(label)
-    return df
 
 
 ###### IMAGE PREPROCESSING ######
@@ -861,3 +735,133 @@ def find_rooms_create_image(images, pipe, threshold):
 def classify_room(pipe, image):
     room = pipe.predict([image])
     return room
+
+
+
+
+##### LABEL ENCODING ######
+def prices_to_n_labels(
+    all_prices: np.array, prices: np.array, n_labels: int
+) -> np.array:
+    """
+    Convert the prices to n_labels
+
+    Args:
+      all_prices(`np.array`): All the prices
+      prices(`np.array`): The prices we want to convert
+      n_labels(`int`): The number of labels we want to convert the prices to
+
+    Returns:
+      `np.array`: The prices converted to n_labels
+    """
+
+    # Calculate the quantiles
+    quantiles = [np.quantile(all_prices, i / n_labels) for i in range(1, n_labels)]
+    print(quantiles)
+
+    labels = [
+        (
+            0
+            if price < quantiles[0]
+            else (
+                n_labels - 1
+                if price > quantiles[-1]
+                else np.argmax([price < quantile for quantile in quantiles])
+            )
+        )
+        for price in prices
+    ]
+    encoder = OneHotEncoder(sparse_output=False)
+    one_hot_labels = encoder.fit_transform(np.array(labels).reshape(-1, 1))
+    return one_hot_labels
+
+
+def price_categories(all_prices, prices) -> np.array:
+    # Calculate quantiles
+    low_quantile = np.quantile(all_prices, 0.33)
+    # print(low_quantile)
+    high_quantile = np.quantile(all_prices, 0.66)
+    # print(high_quantile)
+    labels = [
+        0 if price < low_quantile else 1 if price < high_quantile else 2
+        for price in prices
+    ]
+    encoder = OneHotEncoder(sparse_output=False)
+    one_hot_labels = encoder.fit_transform(np.array(labels).reshape(-1, 1))
+    return one_hot_labels
+
+
+def binary_labels(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Add labels-column to the data-points, based on prices. Simply version
+    """
+    mean = df["price"].mean()
+    df["label"] = df["price"].apply(lambda x: 0 if x > mean else 1)
+    return df
+
+
+def normal_distribution_label(data: pd.DataFrame, num_labels: int) -> pd.DataFrame:
+    """
+    Add labels-column to the data-points, based on prices
+    Creates labels based on a normal distribution around the data.
+    That is, we have more labels the closer we are to the mean price, and less the further away we are.
+    Return a data-Frame with the labels and the label codes.
+    """
+    # We want to predict the price of the house
+    min = data["price"].min()
+    first_quan = data["price"].quantile(0.25)
+    mean = data["price"].mean()
+    third_quan = data["price"].quantile(0.75)
+    max = data["price"].max()
+    # Create a normal distribution of the labels
+    f1 = np.linspace(0, min, round(num_labels * 0.023))
+    f2 = np.linspace(min, first_quan, round(num_labels * 0.14))
+    f3 = np.linspace(first_quan, mean, round(num_labels * 0.34))
+    f4 = np.linspace(mean, third_quan, round(num_labels * 0.34))
+    f5 = np.linspace(third_quan, max, round(num_labels * 0.14))
+    f6 = np.linspace(max, max * 2, round(num_labels * 0.023))
+    potential_labels = np.concatenate((f1, f2, f3, f4, f5, f6))
+
+    # Create the label codes
+    label_codes = [(i, label) for i, label in enumerate(potential_labels)]
+
+    # Create the labels
+    price_labels = []
+    price_bracket = []
+    for price in data["price"]:
+        diff = abs(potential_labels - price)
+        index = np.argmin(diff)
+        price_labels.append(index)
+        left = potential_labels[index - 1] if index > 0 else potential_labels[index]
+        right = (
+            potential_labels[index + 1]
+            if index < len(potential_labels) - 1
+            else potential_labels[index]
+        )
+        price_bracket.append((left, right))
+
+    data["label"] = price_labels
+    data["price_bracket"] = price_bracket
+    return data, label_codes
+
+
+def label_low_med_high(df: pd.DataFrame, onehot: bool) -> pd.DataFrame:
+    """
+    Add labels-column to the data-points, based on prices. THREE labels: low, medium, high
+    """
+    price_ranges = {
+        "low": (0, df["price"].quantile(0.33)),
+        "med": (df["price"].quantile(0.33), df["price"].quantile(0.66)),
+        "high": (df["price"].quantile(0.66), df["price"].max()),
+    }
+
+    def label(price):
+        if price >= price_ranges["low"][0] and price <= price_ranges["low"][1]:
+            return 0
+        elif price >= price_ranges["med"][0] and price <= price_ranges["med"][1]:
+            return 1
+        else:
+            return 2
+
+    df["label_price"] = df["price"].apply(label)
+    return df
