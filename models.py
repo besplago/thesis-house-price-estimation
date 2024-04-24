@@ -425,15 +425,24 @@ class N_CNN_RF:
             
             self.models.append(image_model)
             self.fit_histories.append(fit_history)
-        #Step 2: Combine the models into a single model.
-        img_pred = np.mean([model.predict(train_images) for model in self.models])
-        input = np.column_stack((img_pred, train_features))
+
+
+        img_preds = [model.predict(train_images) for model in self.models]
+        img_pred = np.mean(img_preds, axis=0)
+        img_pred = img_pred.flatten()
+        train_input = np.column_stack((img_pred, train_features))
+        train_input = pd.DataFrame(train_input)
+        train_input.columns = ["image_predictions"] + list(train_features.columns) 
         self.model = RandomForestRegressor(n_estimators=100, max_depth=10)
-        self.model.fit(input, train_y)
+        self.model.fit(train_input, train_y)
+        self.feature_importances_ = self.model.fit(train_input, train_y).feature_importances_
+        self.feature_importances_ = (dict(zip(train_input.columns, self.feature_importances_)))
 
     def predict(self, test_images, test_features):
-        img_pred = np.mean([model.predict(test_images) for model in self.models])
-        test_input = np.column_stack((img_pred, test_features))
+        img_preds = [model.predict(test_images) for model in self.models]
+        img_preds = np.mean(img_preds, axis=0)
+        img_preds = img_preds.flatten()
+        test_input = np.column_stack((img_preds, test_features))
         return self.model.predict(test_input)
     
 def N_CNN_RF_model(
