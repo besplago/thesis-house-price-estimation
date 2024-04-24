@@ -219,9 +219,9 @@ def CNN_model(
     fit_history = model.fit(
         train_images,
         y_train,
-        epochs=1,
+        epochs=100,
         validation_data=(validation_images, y_valid),
-        callbacks=[EarlyStopping(patience=5, restore_best_weights=True)],
+        callbacks=[EarlyStopping(patience=30, restore_best_weights=True)],
     )
     return model, fit_history
 
