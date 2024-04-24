@@ -95,7 +95,6 @@ def RF(x_train, y_train):
         model = GridSearchCV(RandomForestRegressor(), param_grid, cv=5)
     else:
         model = RandomForestRegressor(n_estimators=100, max_depth=10)
-
     model.fit(x_train, y_train)
     return model
 
@@ -330,12 +329,15 @@ class CNN_RF:
 
         # Concatenate the predictions
         train_input = np.column_stack((train_image_predictions, train_features))
+        train_input = pd.DataFrame(train_input)
+        train_input.columns = ["image_predictions"] + list(train_features.columns)
 
         # Train the model
         self.model = RandomForestRegressor(n_estimators=100, max_depth=10)
-        self.feature_importance = self.model.fit(train_input, train_y).feature_importances_
         self.model.fit(train_input, train_y)
-    
+        self.feature_importances_ = self.model.fit(train_input, train_y).feature_importances_
+        self.feature_importances_ = (dict(zip(train_input.columns, self.feature_importances_)))
+        
     def predict(self, test_images, test_features):
         # Get the image predictions
         test_image_predictions = self.image_model.predict(test_images).flatten()
@@ -368,24 +370,22 @@ class CNN_AE_RF:
 
         # Get the image predictions
         train_image_predictions = self.image_model.predict(train_images).flatten()
-
-        # Concatenate the predictions
         train_input = np.column_stack((train_image_predictions, reconstruction_error, train_features))
+        train_input = pd.DataFrame(train_input)
+        train_input.columns = ["image_predictions", "reconstruction_error"] + list(train_features.columns)
 
-        # Train the model
         self.model = RandomForestRegressor(n_estimators=100, max_depth=10)
         self.model.fit(train_input, train_y)
-        self.feature_importance = self.model.fit(train_input, train_y).feature_importances_
+        self.feature_importances_ = self.model.fit(train_input, train_y).feature_importances_
+        self.feature_importances_ = (dict(zip(train_input.columns, self.feature_importances_)))
+        
+    def get_error(self, image):
+        return self.autoEncoder_.calculate_error(image)
 
     def predict(self, test_images, test_features):
-        # Get the image predictions
         test_image_predictions = self.image_model.predict(test_images).flatten()
         reconstruction_error = self.autoEncoder_.calculate_error(test_images)
-
-        # Concatenate the predictions
         test_input = np.column_stack((test_image_predictions,reconstruction_error, test_features))
-
-        # Predict the prices
         return self.model.predict(test_input)
 
 def CNN_AE_RF_model(      
