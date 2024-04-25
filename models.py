@@ -94,7 +94,7 @@ def RF(x_train, y_train):
         }
         model = GridSearchCV(RandomForestRegressor(), param_grid, cv=5)
     else:
-        model = RandomForestRegressor(n_estimators=100, max_depth=10)
+        model = RandomForestRegressor(n_estimators=100, max_depth=20)
     model.fit(x_train, y_train)
     return model
 
@@ -171,7 +171,8 @@ def neural_network(x_train, y_train, x_test, y_test):
 def CNN_model(
     # pretrained_model, custom_layers, train_images, y_train, validation_images, y_valid
     pretrained_model: object,
-    custom_layers: bool,
+    use_custom_layers: bool,
+    custom_layers, 
     train_images: np.array,
     y_train: np.array,
     validation_images: np.array,
@@ -190,21 +191,8 @@ def CNN_model(
         layer.trainable = False
 
     # Create the model with the pretrained model and a new classification layer
-    if custom_layers:
-        model = Sequential(
-            [
-                base_model,
-                Flatten(),
-                Dense(512, activation="relu", kernel_regularizer=regularizers.l1(0.01)),
-                # BatchNormalization(),
-                layers.Dropout(0.1),
-                Dense(256, activation="relu", kernel_regularizer=regularizers.l1(0.01)),
-                layers.Dropout(0.1),
-                Dense(128, activation="relu"),
-                Dense(64, activation="relu"),
-                Dense(1, activation="linear"),
-            ]
-        )
+    if use_custom_layers:
+        model = Sequential([base_model] + custom_layers)
     else:
         model = Sequential([base_model, Flatten(), Dense(1, activation="linear")])
 
@@ -256,12 +244,12 @@ def N_CNN_model(
 
 
 #### AutoEncoder ####
-class Denoise(Model):
-    def __init__(self):
-        super(Denoise, self).__init__()
+class AE(Model):
+    def __init__(self, shape):
+        super(AE, self).__init__()
         self.encoder = tf.keras.Sequential(
             [
-                layers.Input(shape=(448, 448, 3)),
+                layers.Input(shape=shape),
                 layers.Conv2D(16, (3, 3), activation="relu", padding="same", strides=2),
                 layers.Conv2D(8, (3, 3), activation="relu", padding="same", strides=2),
             ]
@@ -296,6 +284,10 @@ class Denoise(Model):
             reconstruction_errors.append(tf.reduce_mean(error))
         reconstruction_errors = np.array(reconstruction_errors)
         return reconstruction_errors
+    
+    def reconstruct_img(self,img):
+        img = tf.expand_dims(img, axis=0)
+        return self.__call__(img)
 
 
 def autoEncoder(train_images):
@@ -304,7 +296,7 @@ def autoEncoder(train_images):
         train_images_scaled, test_size=0.1, random_state=42
     )
 
-    autoencoder = Denoise()
+    autoencoder = AE(train_img[0].shape)
     autoencoder.compile(optimizer="adam", loss=losses.MeanSquaredError())
     autoencoder.fit(
         train_img,
@@ -359,13 +351,16 @@ def CNN_RF_model(
     return CNN_RF_
 
 class CNN_AE_RF:
-    def __init__(self, image_model):
+    def __init__(self, image_model, AE_):
         self.image_model = image_model
-        self.autoEncoder_ = None
+        self.autoEncoder_ = None if AE_ is None else AE_
 
     def fit(self, train_images, train_features, train_y):
         #Calculate the reconstruction error
-        self.autoEncoder_ = autoEncoder(train_images)
+        #self.autoEncoder_ = autoEncoder(train_images)
+        if self.autoEncoder_ is None:
+            self.autoEncoder_ = autoEncoder(train_images)
+
         reconstruction_error = self.autoEncoder_.calculate_error(train_images)
 
         # Get the image predictions
@@ -381,6 +376,11 @@ class CNN_AE_RF:
         
     def get_error(self, image):
         return self.autoEncoder_.calculate_error(image)
+    
+    def get_reconstruction(self, image):
+        encoded_img = self.autoEncoder_.encoder(image)
+        decoded_img = self.autoEncoder_.decoder(encoded_img)
+        return encoded_img, decoded_img
 
     def predict(self, test_images, test_features):
         test_image_predictions = self.image_model.predict(test_images).flatten()
@@ -390,11 +390,12 @@ class CNN_AE_RF:
 
 def CNN_AE_RF_model(      
     image_model,
+    AE_,
     train_images,
     train_features,
     train_y,
 ):
-    CNN_AE_RF_model = CNN_AE_RF(image_model)
+    CNN_AE_RF_model = CNN_AE_RF(image_model, AE_)
     CNN_AE_RF_model.fit(train_images, train_features, train_y)
     return CNN_AE_RF_model
 

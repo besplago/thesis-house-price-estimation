@@ -401,3 +401,86 @@ def top_n_best(y_test, y_pred, dataset, n):
 
         plt.show()
     return None
+
+
+def get_saliency_map(model, image):
+    with tf.GradientTape() as tape:
+        image = tf.convert_to_tensor(image, dtype=tf.float32)
+        image = tf.expand_dims(image, axis=0)
+        tape.watch(image)
+        predictions = model(image)
+
+    # Compute gradients of the output with respect to the input image
+    gradient = tape.gradient(predictions, image)
+    
+    # Take absolute value of gradients to get saliency map
+    saliency_map = tf.abs(gradient)
+    
+    # Reshape saliency map
+    saliency_map = tf.reshape(saliency_map, image.shape[1:])  # Remove batch dimension
+    
+    # Normalize between 0 and 1
+    saliency_map /= tf.reduce_max(saliency_map)
+
+    # Set color channels to 0
+    saliency_map = saliency_map[:, :, 0]
+    return saliency_map
+
+
+def get_saliency_maps(model, images: np.ndarray):
+    #set_gpu()
+    #model = tf.keras.models.load_model(f"./{MODEL_NAME}")
+    saliency_maps = []
+    for image in images:
+        with tf.GradientTape() as tape:
+            image = tf.convert_to_tensor(image, dtype=tf.float32)
+            image = tf.expand_dims(image, axis=0)
+            tape.watch(image)
+            predictions = model(image)
+
+        # Compute gradients of the output with respect to the input image
+        gradient = tape.gradient(predictions, image)
+        
+        # Take absolute value of gradients to get saliency map
+        saliency_map = tf.abs(gradient)
+        
+        # Reshape saliency map
+        saliency_map = tf.reshape(saliency_map, image.shape[1:])  # Remove batch dimension
+        
+        # Normalize between 0 and 1
+        saliency_map /= tf.reduce_max(saliency_map)
+
+        # Set color channels to 0
+        saliency_map = saliency_map[:, :, 0]
+
+        saliency_maps.append(saliency_map)
+
+    return saliency_maps
+
+def plot_saliency_maps(images):
+    fig, axes = plt.subplots(n_images, 2, figsize=(10, 5 * n_images))
+    saliency_maps = get_saliency_maps(images)
+
+    if len(images) > 1:
+        for i, image in enumerate(images):
+            # Plot the original image
+            axes[i, 0].imshow(image)
+            axes[i, 0].set_title("Original Image")
+            axes[i, 0].axis("off")
+            
+            # Plot the saliency map
+            axes[i, 1].imshow(saliency_maps[i], cmap="plasma")
+            axes[i, 1].set_title("Saliency Map")
+            axes[i, 1].axis("off")
+    else:
+        # Plot the original image
+        axes[0].imshow(images[0])
+        axes[0].set_title("Original Image")
+        axes[0].axis("off")
+        
+        # Plot the saliency map
+        axes[1].imshow(saliency_maps[0], cmap="plasma")
+        axes[1].set_title("Saliency Map")
+        axes[1].axis("off")
+
+    plt.show()
