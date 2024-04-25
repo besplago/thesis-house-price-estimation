@@ -247,9 +247,11 @@ def N_CNN_model(
 class AE(Model):
     def __init__(self, shape):
         super(AE, self).__init__()
+
         self.encoder = tf.keras.Sequential(
             [
                 layers.Input(shape=shape),
+                #layers.Conv2D(32, (3, 3), activation="relu", padding="same", strides=2),
                 layers.Conv2D(16, (3, 3), activation="relu", padding="same", strides=2),
                 layers.Conv2D(8, (3, 3), activation="relu", padding="same", strides=2),
             ]
@@ -257,24 +259,22 @@ class AE(Model):
 
         self.decoder = tf.keras.Sequential(
             [
-                layers.Conv2DTranspose(
-                    8, kernel_size=3, strides=2, activation="relu", padding="same"
-                ),
-                layers.Conv2DTranspose(
-                    16, kernel_size=3, strides=2, activation="relu", padding="same"
-                ),
-                layers.Conv2D(
-                    1, kernel_size=(3, 3), activation="sigmoid", padding="same"
-                ),
+                layers.Conv2DTranspose(8, kernel_size=3, strides=2, activation="relu", padding="same"),
+                layers.Conv2DTranspose(16, kernel_size=3, strides=2, activation="relu", padding="same"),
+                #layers.Conv2DTranspose(32, kernel_size=3, strides=2, activation="relu", padding="same"),
+                layers.Conv2D(1, kernel_size=(3, 3), activation="sigmoid", padding="same"),
             ]
         )
 
+
     def call(self, x):
+        #grayscale x
         encoded = self.encoder(x)
         decoded = self.decoder(encoded)
         return decoded
 
     def calculate_error(self, input_images):
+        #graysacle images 
         reconstruction_errors = []
         for image in input_images:
             # Expand the single image to a batch dimension
@@ -291,17 +291,17 @@ class AE(Model):
 
 
 def autoEncoder(train_images):
-    train_images_scaled = train_images / 255.0
     train_img, test_img = train_test_split(
-        train_images_scaled, test_size=0.1, random_state=42
+        train_images, test_size=0.1, random_state=42
     )
-
-    autoencoder = AE(train_img[0].shape)
+    print("A")
+    shape = train_img[0].shape
+    autoencoder = AE(shape)
     autoencoder.compile(optimizer="adam", loss=losses.MeanSquaredError())
     autoencoder.fit(
         train_img,
         train_img,
-        epochs=10,
+        epochs=25,
         shuffle=True,
         validation_data=(test_img, test_img),
     )
