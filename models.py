@@ -171,17 +171,17 @@ def neural_network(x_train, y_train, x_test, y_test):
 def CNN_model(
     # pretrained_model, custom_layers, train_images, y_train, validation_images, y_valid
     pretrained_model: object,
-    use_custom_layers: bool,
-    custom_layers, 
     train_images: np.array,
     y_train: np.array,
     validation_images: np.array,
     y_valid: np.array,
+    custom_layers: list = [],
 ):
     # Load the Pretrained Model
-    target_width = train_images[0].shape[0]
-    target_height = train_images[0].shape[1]
-    input_shape = (target_width, target_height, 3)
+    # target_width = train_images[0].shape[0]
+    # target_height = train_images[0].shape[1]
+    # input_shape = (target_width, target_height, 3)
+    input_shape: tuple = train_images[0].shape
     base_model = pretrained_model(
         weights="imagenet", include_top=False, input_shape=input_shape
     )
@@ -191,7 +191,7 @@ def CNN_model(
         layer.trainable = False
 
     # Create the model with the pretrained model and a new classification layer
-    if use_custom_layers:
+    if custom_layers:
         model = Sequential([base_model] + custom_layers)
     else:
         model = Sequential([base_model, Flatten(), Dense(1, activation="linear")])
@@ -199,7 +199,7 @@ def CNN_model(
     print("Compiling Model")
     # Check which type of model we are building
     model.compile(
-        optimizer="Adam", loss="mean_absolute_error", metrics=["mean_absolute_error"]
+        optimizer=Adam(learning_rate=1), loss="mean_absolute_error"#, metrics=["mean_absolute_error"]
     )
 
     print("Fitting Model")
@@ -209,7 +209,7 @@ def CNN_model(
         y_train,
         epochs=100,
         validation_data=(validation_images, y_valid),
-        callbacks=[EarlyStopping(patience=30, restore_best_weights=True)],
+        callbacks=[EarlyStopping(monitor="val_loss", patience=30, restore_best_weights=True)],
     )
     return model, fit_history
 
