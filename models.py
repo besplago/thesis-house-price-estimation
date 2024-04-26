@@ -22,6 +22,7 @@ from tensorflow.keras import layers
 from tensorflow.keras.layers import Input, Concatenate
 from tensorflow.keras import regularizers
 
+import keras
 from keras import losses, Model
 
 from xgboost import XGBRegressor
@@ -341,11 +342,12 @@ class CNN_RF:
         return self.model.predict(test_input)
 
 def CNN_RF_model(
-    image_model,
-    train_images,
-    train_features, 
-    train_y,
+    image_model_path: str,
+    train_images: np.array,
+    train_features: pd.DataFrame,
+    train_y: np.array,
 ):
+    image_model = keras.models.load_model(image_model_path)
     CNN_RF_ = CNN_RF(image_model)
     CNN_RF_.fit(train_images, train_features, train_y)
     return CNN_RF_
@@ -389,12 +391,13 @@ class CNN_AE_RF:
         return self.model.predict(test_input)
 
 def CNN_AE_RF_model(      
-    image_model,
-    AE_,
-    train_images,
-    train_features,
-    train_y,
+    image_model_path: str,
+    AE_: object,
+    train_images: np.array,
+    train_features: pd.DataFrame,
+    train_y: np.array,
 ):
+    image_model = keras.models.load_model(image_model_path)
     CNN_AE_RF_model = CNN_AE_RF(image_model, AE_)
     CNN_AE_RF_model.fit(train_images, train_features, train_y)
     return CNN_AE_RF_model
@@ -722,7 +725,7 @@ def CNN_model_size(pretrained_model, train_images, y_train, validation_images, y
 
 
 def CNN_RF_Weighted_modelV2(
-    image_model,
+    image_model_path: str,
     train_images,
     train_features,
     train_y,
@@ -746,6 +749,7 @@ def CNN_RF_Weighted_modelV2(
     test_y_group1 = []
     test_y_group2 = []
 
+    # image_model = keras.models.load_model(image_model_path)
     # img_train_predictions = image_model.predict(train_images)
     # img_test_predictions = image_model.predict(test_images)
 
@@ -788,7 +792,7 @@ def CNN_RF_Weighted_modelV2(
 
 
 def CNN_AE_RF_MODEL_V2(
-    image_model,
+    image_model_path: str,
     train_images,
     train_features,
     train_y,
@@ -797,6 +801,7 @@ def CNN_AE_RF_MODEL_V2(
     test_y,
     autoEncoder_,
 ):
+    image_model = keras.models.load_model(image_model_path)
 
     # autoEncoder_ = autoEncoder(train_images)
     train_features["image_prediction"] = image_model.predict(train_images)
@@ -853,7 +858,7 @@ def CNN_AE_RF_MODEL_V2(
 
 
 def CNN_RF_Size_model_V2(
-    image_model,
+    image_model_path,
     size_model,
     train_images,
     train_features,
@@ -862,6 +867,8 @@ def CNN_RF_Size_model_V2(
     test_features,
     test_y,
 ):
+    image_model = keras.models.load_model(image_model_path)
+
     # Step 1: Use the image model to make predictions
     train_image_predictions = image_model.predict(train_images)
     test_image_predictions = image_model.predict(test_images)
