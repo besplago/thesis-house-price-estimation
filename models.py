@@ -72,7 +72,7 @@ from tensorflow.keras.applications import (
 from tensorflow.keras.applications import NASNetMobile, NASNetLarge
 
 
-RF_SEED = 47
+RF_SEED: int | None = None
 RF_N_ESTIMATORS = 100
 RF_MAX_DEPTH = 25
 
@@ -90,7 +90,7 @@ def RF(x_train, y_train):
         pass
 
     # GridSearch
-    gridSearch = False
+    gridSearch = True
     if gridSearch:
         param_grid = {
             "n_estimators": [100, 200, 300, 400],  # Number of trees in the forest
@@ -103,7 +103,7 @@ def RF(x_train, y_train):
             ],  # Minimum samples required to split a node
         }
         model = GridSearchCV(
-            RandomForestRegressor(), param_grid, cv=5, random_state=RF_SEED, n_jobs=-1
+            RandomForestRegressor(), param_grid, cv=5, n_jobs=-1
         )
         # get the model with best params
 
