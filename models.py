@@ -70,10 +70,12 @@ from tensorflow.keras.applications import (
 from tensorflow.keras.applications import NASNetMobile, NASNetLarge
 
 
+RF_SEED = 47
+RF_N_ESTIMATORS = 100
+RF_MAX_DEPTH = 25
+
 #### Feature Models ####
 def RF(x_train, y_train):
-    
-
     # Format the 4-dimensional input to 2-dimensional
     try: 
         x_train = x_train.reshape(x_train.shape[0], -1)
@@ -88,14 +90,16 @@ def RF(x_train, y_train):
     gridSearch = False
     if gridSearch:
         param_grid = {
-            "n_estimators": [100, 200, 400, 800],  # Number of trees in the forest
+            "n_estimators": [100, 200, 300, 400],  # Number of trees in the forest
             "max_depth": [5, 10, 15, 20, 40],  # Maximum depth of individual trees
             "min_samples_split": [2, 4, 8, 16],  # Minimum samples required to split a node
         }
         model = GridSearchCV(RandomForestRegressor(), param_grid, cv=5)
+        #get the model with best params 
+
     else:
-        model = RandomForestRegressor(n_estimators=100, max_depth=20)
-    model.fit(x_train, y_train)
+        model = RandomForestRegressor(n_estimators=RF_N_ESTIMATORS, max_depth=RF_MAX_DEPTH, random_state=RF_SEED)
+        model.fit(x_train, y_train)
     return model
 
 
@@ -213,6 +217,50 @@ def CNN_model(
     )
     return model, fit_history
 
+def CNN_model1(
+    # pretrained_model, custom_layers, train_images, y_train, validation_images, y_valid
+    pretrained_model: object,
+    train_images: np.array,
+    y_train: np.array,
+    validation_images: np.array,
+    y_valid: np.array,
+    custom_layers: list = [],
+):
+    # Load the Pretrained Model
+    # target_width = train_images[0].shape[0]
+    # target_height = train_images[0].shape[1]
+    # input_shape = (target_width, target_height, 3)
+    input_shape: tuple = train_images[0].shape
+    base_model = pretrained_model(
+        weights="imagenet", include_top=False, input_shape=input_shape
+    )
+
+    # Freeze the pretrained weights
+    for layer in base_model.layers:
+        layer.trainable = False
+
+    # Create the model with the pretrained model and a new classification layer
+    if custom_layers:
+        model = Sequential([base_model] + custom_layers)
+    else:
+        model = Sequential([base_model, Flatten(), Dense(1, activation="linear")])
+
+    print("Compiling Model")
+    # Check which type of model we are building
+    model.compile(
+        optimizer='Adam', loss="mean_absolute_error", metrics=["mean_absolute_error"]
+    )
+
+    print("Fitting Model")
+    # Fit the model
+    fit_history = model.fit(
+        train_images,
+        y_train,
+        epochs=100,
+        validation_data=(validation_images, y_valid),
+        callbacks=[EarlyStopping(monitor="val_loss", patience=30, restore_best_weights=True)],
+    )
+    return model, fit_history
 
 def N_CNN_model(
     # pretrained_model, train_images, y_train, validation_images, y_valid, n
@@ -243,71 +291,6 @@ def N_CNN_model(
 
 
 
-#### AutoEncoder ####
-class AE(Model):
-    def __init__(self, shape):
-        super(AE, self).__init__()
-
-        self.encoder = tf.keras.Sequential(
-            [
-                layers.Input(shape=shape),
-                #layers.Conv2D(32, (3, 3), activation="relu", padding="same", strides=2),
-                layers.Conv2D(16, (3, 3), activation="relu", padding="same", strides=2),
-                layers.Conv2D(8, (3, 3), activation="relu", padding="same", strides=2),
-            ]
-        )
-
-        self.decoder = tf.keras.Sequential(
-            [
-                layers.Conv2DTranspose(8, kernel_size=3, strides=2, activation="relu", padding="same"),
-                layers.Conv2DTranspose(16, kernel_size=3, strides=2, activation="relu", padding="same"),
-                #layers.Conv2DTranspose(32, kernel_size=3, strides=2, activation="relu", padding="same"),
-                layers.Conv2D(1, kernel_size=(3, 3), activation="sigmoid", padding="same"),
-            ]
-        )
-
-
-    def call(self, x):
-        #grayscale x
-        encoded = self.encoder(x)
-        decoded = self.decoder(encoded)
-        return decoded
-
-    def calculate_error(self, input_images):
-        #graysacle images 
-        reconstruction_errors = []
-        for image in input_images:
-            # Expand the single image to a batch dimension
-            image_batch = tf.expand_dims(image, axis=0)
-            decoded = self.__call__(image_batch)  # Call the model with the batch
-            error = tf.keras.losses.MeanSquaredError()(image_batch, decoded)
-            reconstruction_errors.append(tf.reduce_mean(error))
-        reconstruction_errors = np.array(reconstruction_errors)
-        return reconstruction_errors
-    
-    def reconstruct_img(self,img):
-        img = tf.expand_dims(img, axis=0)
-        return self.__call__(img)
-
-
-def autoEncoder(train_images):
-    train_img, test_img = train_test_split(
-        train_images, test_size=0.1, random_state=42
-    )
-    print("A")
-    shape = train_img[0].shape
-    autoencoder = AE(shape)
-    autoencoder.compile(optimizer="adam", loss=losses.MeanSquaredError())
-    autoencoder.fit(
-        train_img,
-        train_img,
-        epochs=25,
-        shuffle=True,
-        validation_data=(test_img, test_img),
-    )
-    return autoencoder
-
-
 #### Ensemble Models ####
 class CNN_RF:
     def __init__(self, image_model):
@@ -325,7 +308,8 @@ class CNN_RF:
         train_input.columns = ["image_predictions"] + list(train_features.columns)
 
         # Train the model
-        self.model = RandomForestRegressor(n_estimators=100, max_depth=10)
+        #self.model = RandomForestRegressor(n_estimators=RF_N_ESTIMATORS, max_depth=RF_MAX_DEPTH, random_state=RF_SEED)
+        self.model = RF(train_input, train_y)
         self.model.fit(train_input, train_y)
         self.feature_importances_ = self.model.fit(train_input, train_y).feature_importances_
         self.feature_importances_ = (dict(zip(train_input.columns, self.feature_importances_)))
@@ -350,6 +334,21 @@ def CNN_RF_model(
     CNN_RF_.fit(train_images, train_features, train_y)
     return CNN_RF_
 
+
+
+
+
+from cae import cae
+def autoEncoder(train_images, latent_dim):
+    train_img, test_img = train_test_split(
+        train_images, test_size=0.1, random_state=42
+    )
+    #shape = train_img[0].shape
+    autoencoder = cae(input_shape=train_images.shape[1:], output_dim=latent_dim)
+    autoencoder.fit(train_images)
+    return autoencoder
+
+
 class CNN_AE_RF:
     def __init__(self, image_model, AE_):
         self.image_model = image_model
@@ -357,19 +356,21 @@ class CNN_AE_RF:
 
     def fit(self, train_images, train_features, train_y):
         #Calculate the reconstruction error
-        #self.autoEncoder_ = autoEncoder(train_images)
         if self.autoEncoder_ is None:
-            self.autoEncoder_ = autoEncoder(train_images)
+            self.autoEncoder_ = autoEncoder(train_images, latent_dim = 64)
 
         reconstruction_error = self.autoEncoder_.calculate_error(train_images)
 
         # Get the image predictions
         train_image_predictions = self.image_model.predict(train_images).flatten()
+
+        #Combine the predictions
         train_input = np.column_stack((train_image_predictions, reconstruction_error, train_features))
         train_input = pd.DataFrame(train_input)
         train_input.columns = ["image_predictions", "reconstruction_error"] + list(train_features.columns)
 
-        self.model = RandomForestRegressor(n_estimators=100, max_depth=10)
+        #Run RF
+        self.model = RandomForestRegressor(n_estimators=RF_N_ESTIMATORS, max_depth=RF_MAX_DEPTH, random_state=RF_SEED)
         self.model.fit(train_input, train_y)
         self.feature_importances_ = self.model.fit(train_input, train_y).feature_importances_
         self.feature_importances_ = (dict(zip(train_input.columns, self.feature_importances_)))
@@ -434,7 +435,7 @@ class N_CNN_RF:
         train_input = np.column_stack((img_pred, train_features))
         train_input = pd.DataFrame(train_input)
         train_input.columns = ["image_predictions"] + list(train_features.columns) 
-        self.model = RandomForestRegressor(n_estimators=100, max_depth=10)
+        self.model = RandomForestRegressor(n_estimators=RF_N_ESTIMATORS, max_depth=RF_MAX_DEPTH, random_state=RF_SEED)
         self.model.fit(train_input, train_y)
         self.feature_importances_ = self.model.fit(train_input, train_y).feature_importances_
         self.feature_importances_ = (dict(zip(train_input.columns, self.feature_importances_)))
@@ -619,6 +620,45 @@ def CNN_RF_model_V2(
 
 
 ################# LEGACY / Not in USE ###################
+class AE_OLD(Model):
+    def __init__(self):
+        super(AE_OLD, self).__init__()
+
+        self.encoder = tf.keras.Sequential([
+        layers.Input(shape=(224, 224, 3)),
+        layers.Conv2D(32, (3, 3), activation='relu', padding='same', strides=2),
+        layers.Conv2D(16, (3, 3), activation='relu', padding='same', strides=2),
+        layers.Conv2D(8, (3, 3), activation='relu', padding='same', strides=2)])
+
+        self.decoder = tf.keras.Sequential([
+        layers.Conv2DTranspose(8, kernel_size=3, strides=2, activation='relu', padding='same'),
+        layers.Conv2DTranspose(16, kernel_size=3, strides=2, activation='relu', padding='same'),
+        layers.Conv2DTranspose(32, (3, 3), activation='relu', padding='same', strides=2),
+        layers.Conv2D(1, kernel_size=(3, 3), activation='sigmoid', padding='same')])
+
+
+    def call(self, x):
+        #grayscale x
+        encoded = self.encoder(x)
+        decoded = self.decoder(encoded)
+        return decoded
+
+    def calculate_error(self, input_images):
+        #graysacle images 
+        reconstruction_errors = []
+        for image in input_images:
+            # Expand the single image to a batch dimension
+            image_batch = tf.expand_dims(image, axis=0)
+            decoded = self.__call__(image_batch)  # Call the model with the batch
+            error = tf.keras.losses.MeanSquaredError()(image_batch, decoded)
+            reconstruction_errors.append(tf.reduce_mean(error))
+        reconstruction_errors = np.array(reconstruction_errors)
+        return reconstruction_errors
+    
+    def reconstruct_img(self,img):
+        img = tf.expand_dims(img, axis=0)
+        return self.__call__(img)
+
 def CNN_confidence_model(
     CNN_model, train_images, validation_images, test_images, y_train, y_valid, y_test
 ):
