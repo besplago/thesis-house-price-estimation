@@ -103,9 +103,14 @@ def RF(x_train, y_train):
             ],  # Minimum samples required to split a node
         }
         model = GridSearchCV(
-            RandomForestRegressor(), param_grid, cv=5, n_jobs=-1
+            RandomForestRegressor(random_state=RF_SEED),
+            param_grid,
+            cv=5,
+            n_jobs=-1,
         )
         # get the model with best params
+        model.fit(x_train, y_train)
+        print("Best Params from GridSearch: ", model.best_params_)
 
     else:
         model = RandomForestRegressor(
@@ -337,7 +342,6 @@ class CNN_RF:
         return self.model.predict(test_input)
 
 
-
 def CNN_RF_model(
     image_model,
     train_images: np.array,
@@ -352,9 +356,6 @@ def CNN_RF_model(
     CNN_RF_ = CNN_RF(image_model)
     CNN_RF_.fit(train_images, train_features, train_y)
     return CNN_RF_
-
-
-
 
 
 """
