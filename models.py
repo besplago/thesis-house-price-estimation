@@ -75,10 +75,11 @@ RF_SEED = 47
 RF_N_ESTIMATORS = 100
 RF_MAX_DEPTH = 25
 
+
 #### Feature Models ####
 def RF(x_train, y_train):
     # Format the 4-dimensional input to 2-dimensional
-    try: 
+    try:
         x_train = x_train.reshape(x_train.shape[0], -1)
     except:
         pass
@@ -87,19 +88,31 @@ def RF(x_train, y_train):
     except:
         pass
 
-    #GridSearch
+    # GridSearch
     gridSearch = False
     if gridSearch:
         param_grid = {
             "n_estimators": [100, 200, 300, 400],  # Number of trees in the forest
             "max_depth": [5, 10, 15, 20, 40],  # Maximum depth of individual trees
-            "min_samples_split": [2, 4, 8, 16],  # Minimum samples required to split a node
+            "min_samples_split": [
+                2,
+                4,
+                8,
+                16,
+            ],  # Minimum samples required to split a node
         }
-        model = GridSearchCV(RandomForestRegressor(), param_grid, cv=5)
-        #get the model with best params 
+        model = GridSearchCV(
+            RandomForestRegressor(), param_grid, cv=5, random_state=RF_SEED, n_jobs=-1
+        )
+        # get the model with best params
 
     else:
-        model = RandomForestRegressor(n_estimators=RF_N_ESTIMATORS, max_depth=RF_MAX_DEPTH, random_state=RF_SEED)
+        model = RandomForestRegressor(
+            n_estimators=RF_N_ESTIMATORS,
+            max_depth=RF_MAX_DEPTH,
+            random_state=RF_SEED,
+            n_jobs=-1,
+        )
         model.fit(x_train, y_train)
     return model
 
@@ -289,7 +302,6 @@ def N_CNN_model(
     return models, fit_histories
 
 
-
 #### Ensemble Models ####
 class CNN_RF:
     def __init__(self, image_model):
@@ -331,13 +343,14 @@ def CNN_RF_model(
     train_features: pd.DataFrame,
     train_y: np.array,
 ):
-    image_model = keras.models.load_model(image_model) if isinstance(image_model, str) else image_model
+    image_model = (
+        keras.models.load_model(image_model)
+        if isinstance(image_model, str)
+        else image_model
+    )
     CNN_RF_ = CNN_RF(image_model)
     CNN_RF_.fit(train_images, train_features, train_y)
     return CNN_RF_
-
-
-
 
 
 from cae import cae
@@ -449,7 +462,7 @@ class N_CNN_RF:
         img_preds = img_preds.flatten()
         test_input = np.column_stack((img_preds, test_features))
         return self.model.predict(test_input)
-    
+
 def N_CNN_RF_model(
     n,
     base_model,
@@ -460,7 +473,6 @@ def N_CNN_RF_model(
     N_CNN_RF_ = N_CNN_RF(n, base_model)
     N_CNN_RF_.fit(train_images, train_features, train_y, n)
     return N_CNN_RF_
-
 
 
 def CNN_MLP_model(
@@ -595,31 +607,6 @@ def CNN_RF_model_V2(
 
     RF_model = RF(train_input, train_prices, test_input, test_prices)
     return RF_model
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 ################# LEGACY / Not in USE ###################
