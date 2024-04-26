@@ -197,13 +197,11 @@ def CNN_model(
     else:
         model = Sequential([base_model, Flatten(), Dense(1, activation="linear")])
 
-    print("Compiling Model")
     # Check which type of model we are building
     model.compile(
-        optimizer=Adam(learning_rate=1), loss="mean_absolute_error"#, metrics=["mean_absolute_error"]
+        optimizer=Adam(learning_rate=1), loss="mean_absolute_error"
     )
 
-    print("Fitting Model")
     # Fit the model
     fit_history = model.fit(
         train_images,
