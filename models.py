@@ -107,10 +107,12 @@ def RF(x_train, y_train):
             param_grid,
             cv=5,
             n_jobs=-1,
+            verbose=2,
         )
         # get the model with best params
         model.fit(x_train, y_train)
         print("Best Params from GridSearch: ", model.best_params_)
+        model = model.best_estimator_
 
     else:
         model = RandomForestRegressor(
