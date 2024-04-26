@@ -323,13 +323,15 @@ class CNN_RF:
         # Predict the prices
         return self.model.predict(test_input)
 
+from typing import Union
+
 def CNN_RF_model(
-    image_model_path: str,
+    image_model,
     train_images: np.array,
     train_features: pd.DataFrame,
     train_y: np.array,
 ):
-    image_model = keras.models.load_model(image_model_path)
+    image_model = keras.models.load_model(image_model) if isinstance(image_model, str) else image_model
     CNN_RF_ = CNN_RF(image_model)
     CNN_RF_.fit(train_images, train_features, train_y)
     return CNN_RF_
@@ -390,13 +392,13 @@ class CNN_AE_RF:
         return self.model.predict(test_input)
 
 def CNN_AE_RF_model(      
-    image_model_path: str,
+    image_model,
     AE_: object,
     train_images: np.array,
     train_features: pd.DataFrame,
     train_y: np.array,
 ):
-    image_model = keras.models.load_model(image_model_path)
+    image_model = keras.models.load_model(image_model) if isinstance(image_model, str) else image_model
     CNN_AE_RF_model = CNN_AE_RF(image_model, AE_)
     CNN_AE_RF_model.fit(train_images, train_features, train_y)
     return CNN_AE_RF_model
