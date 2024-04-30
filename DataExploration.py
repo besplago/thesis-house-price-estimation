@@ -13,6 +13,8 @@ def full_summary(df):
   print('Data description:')
   display(descriptions)
   #Output as Latex 
+  #turn into int
+  descriptions = descriptions.astype(int)
   print(descriptions.to_latex())
 
   #Plot histograms of data 

@@ -12,6 +12,9 @@ from IPython.display import display
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.preprocessing import StandardScaler
+
+from skimage.metrics import structural_similarity as ssim
 
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Flatten, Dropout
@@ -28,7 +31,6 @@ from keras import losses, Model
 
 from xgboost import XGBRegressor
 from vit_keras import vit, utils
-from sklearn.preprocessing import StandardScaler
 from utils import (
     plot_regression_results,
     plot_regression_stats,
@@ -386,7 +388,7 @@ class ConvAutoEncoder:
         self.ae.compile(optimizer=optimizer, loss=lossfn)
 
 
-    def fit(self, x, epochs=25, callbacks=[keras.callbacks.BaseLogger()], **kwargs):
+    def fit(self, x, epochs=30, callbacks=[keras.callbacks.BaseLogger()], **kwargs):
 
         #self.ae.fit(x=x, y=x, epochs=epochs, callbacks=callbacks, **kwargs)
         self.ae.fit(x=x, y=x, epochs=epochs, callbacks=None, **kwargs)
@@ -411,7 +413,6 @@ class ConvAutoEncoder:
     def encode(self, input):
         return self.encoder.predict(input)
 
-
     def decode(self, codes):
         return self.decoder.predict(codes)
 
@@ -426,18 +427,25 @@ class ConvAutoEncoder:
         encoded = self.encode(input)
         decoded = self.decode(encoded)
         error = np.mean(np.square(input - decoded), axis=(1,2,3))
+        #reconstruction_error = tf.reduce_mean(tf.square(input-decoded))
         return error
+    
+    def calculate_ssim(self, input):
+        #encode, decode, and calculate error for images return array of reconstruction errors
+        encoded = self.encode(input)
+        decoded = self.decode(encoded)
+        norm_input = input / 225.0
+        norm_decoded = decoded / 225.0
+        def calc_ssim(img1, img2):
+            from skimage.metrics import structural_similarity as ssim
+            return ssim(img1, img2, channel_axis=2, data_range=1)
+        return [calc_ssim(img1, img2) for img1, img2 in zip(norm_input, norm_decoded)]
 
 
 def autoEncoder(train_images, latent_dim):
-    train_img, test_img = train_test_split(
-        train_images, test_size=0.1, random_state=42
-    )
-    #shape = train_img[0].shape
     autoencoder = ConvAutoEncoder(input_shape=train_images.shape[1:], output_dim=latent_dim)
     autoencoder.fit(train_images)
     return autoencoder
-
 
 class CNN_AE_RF:
     def __init__(self, image_model, AE_):
@@ -449,7 +457,8 @@ class CNN_AE_RF:
         if self.autoEncoder_ is None:
             self.autoEncoder_ = autoEncoder(train_images, latent_dim = 64)
 
-        reconstruction_error = self.autoEncoder_.calculate_error(train_images)
+        reconstruction_error = self.calculate_ssim(train_images)
+        #reconstruction_error = self.autoEncoder_.calculate_ssim(train_images)
 
         # Get the image predictions
         train_image_predictions = self.image_model.predict(train_images).flatten()
@@ -465,17 +474,34 @@ class CNN_AE_RF:
         self.feature_importances_ = self.model.fit(train_input, train_y).feature_importances_
         self.feature_importances_ = (dict(zip(train_input.columns, self.feature_importances_)))
         
-    def get_error(self, image):
-        return self.autoEncoder_.calculate_error(image)
+    # def calculate_error(self, image):
+    #     encoded_img = encoded_img = self.autoEncoder_.encoder(image)
+    #     decoded_img = self.autoEncoder_.decoder(encoded_img)
+    #     reconstruction_error = tf.reduce_mean(tf.sqaure(input-decoded_img))
+
+    #     #return self.autoEncoder_.calculate_error(image)
     
-    def get_reconstruction(self, image):
-        encoded_img = self.autoEncoder_.encoder(image)
-        decoded_img = self.autoEncoder_.decoder(encoded_img)
-        return encoded_img, decoded_img
+    # def get_reconstruction(self, image):
+    #     encoded_img = self.autoEncoder_.encoder(image)
+    #     decoded_img = self.autoEncoder_.decoder(encoded_img)
+    #     diff = np.mean(np.square(image - decoded_img), axis=(1,2,3))
+    #     return decoded_img, diff
+    
+    def calculate_ssim(self, input):
+        #encode, decode, and calculate error for images return array of reconstruction errors
+        encoded = self.autoEncoder_.encode(input)
+        decoded = self.autoEncoder_.decode(encoded)
+        norm_input = input / 225.0
+        norm_decoded = decoded / 225.0
+        def calc_ssim(img1, img2):
+            return ssim(img1, img2, channel_axis=2, data_range=1)
+        return [calc_ssim(img1, img2) for img1, img2 in zip(norm_input, norm_decoded)]
 
     def predict(self, test_images, test_features):
+        #reconstruction_error = self.autoEncoder_.calcuate_ssim(test_images)
+        #reconstruction_error = self.autoEncoder_.calculate_error(test_images)
+        reconstruction_error = self.calculate_ssim(test_images)
         test_image_predictions = self.image_model.predict(test_images).flatten()
-        reconstruction_error = self.autoEncoder_.calculate_error(test_images)
         test_input = np.column_stack((test_image_predictions,reconstruction_error, test_features))
         return self.model.predict(test_input)
 
