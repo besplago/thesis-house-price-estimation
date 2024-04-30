@@ -227,28 +227,34 @@ def data_to_DF_old(folder_path: str, max_houses: int = None) -> pd.DataFrame:
     return df
 
 
-def data_to_df(folder_paths: list[str], preprocess: bool = True) -> list[pd.DataFrame]:
+def data_to_df(
+    folder_paths: list[str], preprocess: bool = True, rm_outliers: bool = False
+) -> list[pd.DataFrame]:
     """
     Load data from multiple folders and returns the DataFrames
     """
     dfs = []
-    
+
     for folder_path in folder_paths:
         houses = load_houses(folder_path)
         data = []
-        
+
         for house in tqdm(houses, desc=f"Processing {folder_path}"):
             data.append(house.__dict__)
-        
+
         df = pd.DataFrame(data)
         dfs.append(df)
 
     if preprocess:
         dfs = [preprocess_data(df) for df in tqdm(dfs, desc="Preprocessing")]
 
+    if rm_outliers:
+        print("Removing outliers...")
+        print(f"Datapoints before: {sum([len(df) for df in dfs])}")
+        dfs = [remove_outliers(df, "price", 3) for df in tqdm(dfs, desc="Removing outliers")]
+        print(f"Datapoints after: {sum([len(df) for df in dfs])}")
+
     return dfs
-
-
 
 
 ###### IMAGE PREPROCESSING ######
@@ -735,8 +741,6 @@ def find_rooms_create_image(images, pipe, threshold):
 def classify_room(pipe, image):
     room = pipe.predict([image])
     return room
-
-
 
 
 ##### LABEL ENCODING ######
