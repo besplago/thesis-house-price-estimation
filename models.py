@@ -31,13 +31,6 @@ from keras import losses, Model
 
 from xgboost import XGBRegressor
 from vit_keras import vit, utils
-from utils import (
-    plot_regression_results,
-    plot_regression_stats,
-    plot_feature_importance,
-    prepare_features,
-    eval_model,
-)
 #from img_utils import preprocess_images, create_bow_representation, set_gpu, data_to_df, set_cpu
 from utils import *
 from tensorflow.keras.applications import (
