@@ -31,7 +31,8 @@ from keras import losses, Model
 
 from xgboost import XGBRegressor
 from vit_keras import vit, utils
-#from img_utils import preprocess_images, create_bow_representation, set_gpu, data_to_df, set_cpu
+
+# from img_utils import preprocess_images, create_bow_representation, set_gpu, data_to_df, set_cpu
 from utils import *
 from tensorflow.keras.applications import (
     MobileNet,
@@ -73,11 +74,13 @@ RF_MAX_DEPTH = 25
 
 
 #### Feature Models ####
-def Lasso_(x_train, y_train): 
+def Lasso_(x_train, y_train):
     from sklearn.linear_model import Lasso
+
     model = Lasso(alpha=0.1)
     model.fit(x_train, y_train)
     return model
+
 
 def RF(x_train, y_train):
     # Format the 4-dimensional input to 2-dimensional
@@ -224,9 +227,7 @@ def CNN_model(
         model = Sequential([base_model, Flatten(), Dense(1, activation="linear")])
 
     # Check which type of model we are building
-    model.compile(
-        optimizer=Adam(learning_rate=1), loss="mean_absolute_error"
-    )
+    model.compile(optimizer=Adam(learning_rate=1), loss="mean_absolute_error")
 
     # Fit the model
     fit_history = model.fit(
@@ -234,9 +235,12 @@ def CNN_model(
         y_train,
         epochs=100,
         validation_data=(validation_images, y_valid),
-        callbacks=[EarlyStopping(monitor="val_loss", patience=30, restore_best_weights=True)],
+        callbacks=[
+            EarlyStopping(monitor="val_loss", patience=30, restore_best_weights=True)
+        ],
     )
     return model, fit_history
+
 
 def CNN_model1(
     # pretrained_model, custom_layers, train_images, y_train, validation_images, y_valid
@@ -269,7 +273,7 @@ def CNN_model1(
     print("Compiling Model")
     # Check which type of model we are building
     model.compile(
-        optimizer='Adam', loss="mean_absolute_error", metrics=["mean_absolute_error"]
+        optimizer="Adam", loss="mean_absolute_error", metrics=["mean_absolute_error"]
     )
 
     print("Fitting Model")
@@ -279,9 +283,12 @@ def CNN_model1(
         y_train,
         epochs=100,
         validation_data=(validation_images, y_valid),
-        callbacks=[EarlyStopping(monitor="val_loss", patience=30, restore_best_weights=True)],
+        callbacks=[
+            EarlyStopping(monitor="val_loss", patience=30, restore_best_weights=True)
+        ],
     )
     return model, fit_history
+
 
 def N_CNN_model(
     # pretrained_model, train_images, y_train, validation_images, y_valid, n
@@ -316,8 +323,7 @@ class CNN_RF:
     def __init__(self, image_model):
         self.image_model = image_model
 
-
-    #Fit that needs images, features. Predict images, features
+    # Fit that needs images, features. Predict images, features
     def fit(self, train_images, train_features, train_y):
         # Get the image predictions
         train_image_predictions = self.image_model.predict(train_images).flatten()
@@ -328,12 +334,16 @@ class CNN_RF:
         train_input.columns = ["image_predictions"] + list(train_features.columns)
 
         # Train the model
-        #self.model = RandomForestRegressor(n_estimators=RF_N_ESTIMATORS, max_depth=RF_MAX_DEPTH, random_state=RF_SEED)
+        # self.model = RandomForestRegressor(n_estimators=RF_N_ESTIMATORS, max_depth=RF_MAX_DEPTH, random_state=RF_SEED)
         self.model = RF(train_input, train_y)
         self.model.fit(train_input, train_y)
-        self.feature_importances_ = self.model.fit(train_input, train_y).feature_importances_
-        self.feature_importances_ = (dict(zip(train_input.columns, self.feature_importances_)))
-        
+        self.feature_importances_ = self.model.fit(
+            train_input, train_y
+        ).feature_importances_
+        self.feature_importances_ = dict(
+            zip(train_input.columns, self.feature_importances_)
+        )
+
     def predict(self, test_images, test_features):
         # Get the image predictions
         test_image_predictions = self.image_model.predict(test_images).flatten()
@@ -367,21 +377,40 @@ An implementation of a convolutional autoencoder (CAE) using Keras.
 Jason M. Manley, 2018
 jmanley@rockefeller.edu
 """
+
+
 class ConvAutoEncoder:
 
-    def __init__(self, input_shape, output_dim, filters=[32, 64, 128, 256],
-                 kernel=(3,3), stride=(1,1), strideundo=2, pool=(2,2),
-                 optimizer="adamax", lossfn="mse"):
+    def __init__(
+        self,
+        input_shape,
+        output_dim,
+        filters=[32, 64, 128, 256],
+        kernel=(3, 3),
+        stride=(1, 1),
+        strideundo=2,
+        pool=(2, 2),
+        optimizer="adamax",
+        lossfn="mse",
+    ):
         # For now, assuming input_shape is mxnxc, and m,n are multiples of 2.
 
         self.input_shape = input_shape
-        self.output_dim  = output_dim
+        self.output_dim = output_dim
 
         # define encoder architecture
         self.encoder = keras.models.Sequential()
         self.encoder.add(keras.layers.InputLayer(input_shape))
         for i in range(len(filters)):
-            self.encoder.add(keras.layers.Conv2D(filters=filters[i], kernel_size=kernel, strides=stride, activation='elu', padding='same'))
+            self.encoder.add(
+                keras.layers.Conv2D(
+                    filters=filters[i],
+                    kernel_size=kernel,
+                    strides=stride,
+                    activation="elu",
+                    padding="same",
+                )
+            )
             self.encoder.add(keras.layers.MaxPooling2D(pool_size=pool))
         self.encoder.add(keras.layers.Flatten())
         self.encoder.add(keras.layers.Dense(output_dim))
@@ -389,42 +418,70 @@ class ConvAutoEncoder:
         # define decoder architecture
         self.decoder = keras.models.Sequential()
         self.decoder.add(keras.layers.InputLayer((output_dim,)))
-        self.decoder.add(keras.layers.Dense(filters[len(filters)-1] * int(input_shape[0]/(2**(len(filters)))) * int(input_shape[1]/(2**(len(filters))))))
-        self.decoder.add(keras.layers.Reshape((int(input_shape[0]/(2**(len(filters)))),int(input_shape[1]/(2**(len(filters)))), filters[len(filters)-1])))
-        for i in range(1,len(filters)):
-            self.decoder.add(keras.layers.Conv2DTranspose(filters=filters[len(filters)-i], kernel_size=kernel, strides=strideundo, activation='elu', padding='same'))
-        self.decoder.add(    keras.layers.Conv2DTranspose(filters=input_shape[2],          kernel_size=kernel, strides=strideundo, activation=None,  padding='same'))
+        self.decoder.add(
+            keras.layers.Dense(
+                filters[len(filters) - 1]
+                * int(input_shape[0] / (2 ** (len(filters))))
+                * int(input_shape[1] / (2 ** (len(filters))))
+            )
+        )
+        self.decoder.add(
+            keras.layers.Reshape(
+                (
+                    int(input_shape[0] / (2 ** (len(filters)))),
+                    int(input_shape[1] / (2 ** (len(filters)))),
+                    filters[len(filters) - 1],
+                )
+            )
+        )
+        for i in range(1, len(filters)):
+            self.decoder.add(
+                keras.layers.Conv2DTranspose(
+                    filters=filters[len(filters) - i],
+                    kernel_size=kernel,
+                    strides=strideundo,
+                    activation="elu",
+                    padding="same",
+                )
+            )
+        self.decoder.add(
+            keras.layers.Conv2DTranspose(
+                filters=input_shape[2],
+                kernel_size=kernel,
+                strides=strideundo,
+                activation=None,
+                padding="same",
+            )
+        )
 
         # compile model
-        input         = keras.layers.Input(input_shape)
-        code          = self.encoder(input)
+        input = keras.layers.Input(input_shape)
+        code = self.encoder(input)
         reconstructed = self.decoder(code)
 
         self.ae = keras.models.Model(inputs=input, outputs=reconstructed)
         self.ae.compile(optimizer=optimizer, loss=lossfn)
 
-
     def fit(self, x, epochs=30, callbacks=[keras.callbacks.BaseLogger()], **kwargs):
 
-        #self.ae.fit(x=x, y=x, epochs=epochs, callbacks=callbacks, **kwargs)
+        # self.ae.fit(x=x, y=x, epochs=epochs, callbacks=callbacks, **kwargs)
         self.ae.fit(x=x, y=x, epochs=epochs, callbacks=None, **kwargs)
 
-
     def save_weights(self, path=None, prefix=""):
-        if path is None: path = os.getcwd()
-        #create path if not existing 
+        if path is None:
+            path = os.getcwd()
+        # create path if not existing
         if not os.path.exists(path):
             os.makedirs(path)
-        
+
         self.encoder.save_weights(os.path.join(path, prefix + "encoder_weights.h5"))
         self.decoder.save_weights(os.path.join(path, prefix + "decoder_weights.h5"))
 
-
     def load_weights(self, path=None, prefix=""):
-        if path is None: path = os.getcwd()
+        if path is None:
+            path = os.getcwd()
         self.encoder.load_weights(os.path.join(path, prefix + "encoder_weights.h5"))
         self.decoder.load_weights(os.path.join(path, prefix + "decoder_weights.h5"))
-
 
     def encode(self, input):
         return self.encoder.predict(input)
@@ -434,34 +491,40 @@ class ConvAutoEncoder:
 
     def predict(self, input):
         return self.encode(input)
-    
+
     def save_model(self):
         self.ae.save("cae_model.h5")
 
     def calculate_error(self, input):
-        #encode, decode, and calculate error for images return array of reconstruction errors
+        # encode, decode, and calculate error for images return array of reconstruction errors
         encoded = self.encode(input)
         decoded = self.decode(encoded)
-        error = np.mean(np.square(input - decoded), axis=(1,2,3))
-        #reconstruction_error = tf.reduce_mean(tf.square(input-decoded))
+        error = np.mean(np.square(input - decoded), axis=(1, 2, 3))
+        # reconstruction_error = tf.reduce_mean(tf.square(input-decoded))
         return error
-    
+
     def calculate_ssim(self, input):
-        #encode, decode, and calculate error for images return array of reconstruction errors
+        # encode, decode, and calculate error for images return array of reconstruction errors
         encoded = self.encode(input)
         decoded = self.decode(encoded)
         norm_input = input / 225.0
         norm_decoded = decoded / 225.0
+
         def calc_ssim(img1, img2):
             from skimage.metrics import structural_similarity as ssim
+
             return ssim(img1, img2, channel_axis=2, data_range=1)
+
         return [calc_ssim(img1, img2) for img1, img2 in zip(norm_input, norm_decoded)]
 
 
 def autoEncoder(train_images, latent_dim):
-    autoencoder = ConvAutoEncoder(input_shape=train_images.shape[1:], output_dim=latent_dim)
+    autoencoder = ConvAutoEncoder(
+        input_shape=train_images.shape[1:], output_dim=latent_dim
+    )
     autoencoder.fit(train_images)
     return autoencoder
+
 
 class CNN_AE_RF:
     def __init__(self, image_model, AE_):
@@ -469,171 +532,145 @@ class CNN_AE_RF:
         self.autoEncoder_ = None if AE_ is None else AE_
 
     def fit(self, train_images, train_features, train_y):
-        #Calculate the reconstruction error
+        # Calculate the reconstruction error
         if self.autoEncoder_ is None:
-            self.autoEncoder_ = autoEncoder(train_images, latent_dim = 64)
+            self.autoEncoder_ = autoEncoder(train_images, latent_dim=64)
 
         reconstruction_error = self.calculate_ssim(train_images)
-        #reconstruction_error = self.autoEncoder_.calculate_ssim(train_images)
+        # reconstruction_error = self.autoEncoder_.calculate_ssim(train_images)
 
         # Get the image predictions
         train_image_predictions = self.image_model.predict(train_images).flatten()
 
-        #Combine the predictions
-        train_input = np.column_stack((train_image_predictions, reconstruction_error, train_features))
+        # Combine the predictions
+        train_input = np.column_stack(
+            (train_image_predictions, reconstruction_error, train_features)
+        )
         train_input = pd.DataFrame(train_input)
-        train_input.columns = ["image_predictions", "reconstruction_error"] + list(train_features.columns)
+        train_input.columns = ["image_predictions", "reconstruction_error"] + list(
+            train_features.columns
+        )
 
-        #Run RF
-        self.model = RandomForestRegressor(n_estimators=RF_N_ESTIMATORS, max_depth=RF_MAX_DEPTH, random_state=RF_SEED)
+        # Run RF
+        self.model = RandomForestRegressor(
+            n_estimators=RF_N_ESTIMATORS, max_depth=RF_MAX_DEPTH, random_state=RF_SEED
+        )
         self.model.fit(train_input, train_y)
-        self.feature_importances_ = self.model.fit(train_input, train_y).feature_importances_
-        self.feature_importances_ = (dict(zip(train_input.columns, self.feature_importances_)))
-        
+        self.feature_importances_ = self.model.fit(
+            train_input, train_y
+        ).feature_importances_
+        self.feature_importances_ = dict(
+            zip(train_input.columns, self.feature_importances_)
+        )
+
     # def calculate_error(self, image):
     #     encoded_img = encoded_img = self.autoEncoder_.encoder(image)
     #     decoded_img = self.autoEncoder_.decoder(encoded_img)
     #     reconstruction_error = tf.reduce_mean(tf.sqaure(input-decoded_img))
 
     #     #return self.autoEncoder_.calculate_error(image)
-    
+
     # def get_reconstruction(self, image):
     #     encoded_img = self.autoEncoder_.encoder(image)
     #     decoded_img = self.autoEncoder_.decoder(encoded_img)
     #     diff = np.mean(np.square(image - decoded_img), axis=(1,2,3))
     #     return decoded_img, diff
-    
+
     def calculate_ssim(self, input):
-        #encode, decode, and calculate error for images return array of reconstruction errors
+        # encode, decode, and calculate error for images return array of reconstruction errors
         encoded = self.autoEncoder_.encode(input)
         decoded = self.autoEncoder_.decode(encoded)
         norm_input = input / 225.0
         norm_decoded = decoded / 225.0
+
         def calc_ssim(img1, img2):
             return ssim(img1, img2, channel_axis=2, data_range=1)
+
         return [calc_ssim(img1, img2) for img1, img2 in zip(norm_input, norm_decoded)]
 
     def predict(self, test_images, test_features):
-        #reconstruction_error = self.autoEncoder_.calcuate_ssim(test_images)
-        #reconstruction_error = self.autoEncoder_.calculate_error(test_images)
+        # reconstruction_error = self.autoEncoder_.calcuate_ssim(test_images)
+        # reconstruction_error = self.autoEncoder_.calculate_error(test_images)
         reconstruction_error = self.calculate_ssim(test_images)
         test_image_predictions = self.image_model.predict(test_images).flatten()
-        test_input = np.column_stack((test_image_predictions,reconstruction_error, test_features))
+        test_input = np.column_stack(
+            (test_image_predictions, reconstruction_error, test_features)
+        )
         return self.model.predict(test_input)
 
-def CNN_AE_RF_model(      
+
+def CNN_AE_RF_model(
     image_model,
     AE_: object,
     train_images: np.array,
     train_features: pd.DataFrame,
     train_y: np.array,
 ):
-    image_model = keras.models.load_model(image_model) if isinstance(image_model, str) else image_model
+    image_model = (
+        keras.models.load_model(image_model)
+        if isinstance(image_model, str)
+        else image_model
+    )
     CNN_AE_RF_model = CNN_AE_RF(image_model, AE_)
     CNN_AE_RF_model.fit(train_images, train_features, train_y)
     return CNN_AE_RF_model
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ################# LEGACY / Not in USE ###################
 class N_CNN_RF:
-    #Setup a class that train N-models and combines them into a single model. Does not take image model as input
+    # Setup a class that train N-models and combines them into a single model. Does not take image model as input
     def __init__(self, n, base_model):
         self.models = []
         self.fit_histories = []
         self.n = n
         self.base_model = base_model
-    
+
     def fit(self, train_images, train_features, train_y, n):
-        #Step 1: Train N models
+        # Step 1: Train N models
         splits = list(zip(np.array_split(train_images, n), np.array_split(train_y, n)))
         for i in range(n):
             # Train the model on n-1 splits
             train_images_i = np.concatenate(
                 [split[0] for j, split in enumerate(splits) if j != i]
             )
-            train_y_i = np.concatenate([split[1] for j, split in enumerate(splits) if j != i])
+            train_y_i = np.concatenate(
+                [split[1] for j, split in enumerate(splits) if j != i]
+            )
             valid_images_i = np.concatenate(
-                [split[0] for j, split in enumerate(splits) if j == i])
-            y_valid_i = np.concatenate([split[1] for j, split in enumerate(splits) if j == i])
+                [split[0] for j, split in enumerate(splits) if j == i]
+            )
+            y_valid_i = np.concatenate(
+                [split[1] for j, split in enumerate(splits) if j == i]
+            )
 
             image_model, fit_history = CNN_model(
-                self.base_model, True, train_images_i, train_y_i, valid_images_i, y_valid_i)
-            
+                self.base_model,
+                True,
+                train_images_i,
+                train_y_i,
+                valid_images_i,
+                y_valid_i,
+            )
+
             self.models.append(image_model)
             self.fit_histories.append(fit_history)
-
 
         img_preds = [model.predict(train_images) for model in self.models]
         img_pred = np.mean(img_preds, axis=0)
         img_pred = img_pred.flatten()
         train_input = np.column_stack((img_pred, train_features))
         train_input = pd.DataFrame(train_input)
-        train_input.columns = ["image_predictions"] + list(train_features.columns) 
-        self.model = RandomForestRegressor(n_estimators=RF_N_ESTIMATORS, max_depth=RF_MAX_DEPTH, random_state=RF_SEED)
+        train_input.columns = ["image_predictions"] + list(train_features.columns)
+        self.model = RandomForestRegressor(
+            n_estimators=RF_N_ESTIMATORS, max_depth=RF_MAX_DEPTH, random_state=RF_SEED
+        )
         self.model.fit(train_input, train_y)
-        self.feature_importances_ = self.model.fit(train_input, train_y).feature_importances_
-        self.feature_importances_ = (dict(zip(train_input.columns, self.feature_importances_)))
+        self.feature_importances_ = self.model.fit(
+            train_input, train_y
+        ).feature_importances_
+        self.feature_importances_ = dict(
+            zip(train_input.columns, self.feature_importances_)
+        )
 
     def predict(self, test_images, test_features):
         img_preds = [model.predict(test_images) for model in self.models]
@@ -641,6 +678,7 @@ class N_CNN_RF:
         img_preds = img_preds.flatten()
         test_input = np.column_stack((img_preds, test_features))
         return self.model.predict(test_input)
+
 
 def N_CNN_RF_model(
     n,
@@ -742,6 +780,7 @@ def CNN_MLP_model(
     )
     return combined_model, fit_history
 
+
 def CNN_RF_model_V2(
     CNN_model,
     RF_model,
@@ -786,31 +825,46 @@ def CNN_RF_model_V2(
 
     RF_model = RF(train_input, train_prices, test_input, test_prices)
     return RF_model
+
+
 class AE_OLD(Model):
     def __init__(self):
         super(AE_OLD, self).__init__()
 
-        self.encoder = tf.keras.Sequential([
-        layers.Input(shape=(224, 224, 3)),
-        layers.Conv2D(32, (3, 3), activation='relu', padding='same', strides=2),
-        layers.Conv2D(16, (3, 3), activation='relu', padding='same', strides=2),
-        layers.Conv2D(8, (3, 3), activation='relu', padding='same', strides=2)])
+        self.encoder = tf.keras.Sequential(
+            [
+                layers.Input(shape=(224, 224, 3)),
+                layers.Conv2D(32, (3, 3), activation="relu", padding="same", strides=2),
+                layers.Conv2D(16, (3, 3), activation="relu", padding="same", strides=2),
+                layers.Conv2D(8, (3, 3), activation="relu", padding="same", strides=2),
+            ]
+        )
 
-        self.decoder = tf.keras.Sequential([
-        layers.Conv2DTranspose(8, kernel_size=3, strides=2, activation='relu', padding='same'),
-        layers.Conv2DTranspose(16, kernel_size=3, strides=2, activation='relu', padding='same'),
-        layers.Conv2DTranspose(32, (3, 3), activation='relu', padding='same', strides=2),
-        layers.Conv2D(1, kernel_size=(3, 3), activation='sigmoid', padding='same')])
-
+        self.decoder = tf.keras.Sequential(
+            [
+                layers.Conv2DTranspose(
+                    8, kernel_size=3, strides=2, activation="relu", padding="same"
+                ),
+                layers.Conv2DTranspose(
+                    16, kernel_size=3, strides=2, activation="relu", padding="same"
+                ),
+                layers.Conv2DTranspose(
+                    32, (3, 3), activation="relu", padding="same", strides=2
+                ),
+                layers.Conv2D(
+                    1, kernel_size=(3, 3), activation="sigmoid", padding="same"
+                ),
+            ]
+        )
 
     def call(self, x):
-        #grayscale x
+        # grayscale x
         encoded = self.encoder(x)
         decoded = self.decoder(encoded)
         return decoded
 
     def calculate_error(self, input_images):
-        #graysacle images 
+        # graysacle images
         reconstruction_errors = []
         for image in input_images:
             # Expand the single image to a batch dimension
@@ -820,10 +874,11 @@ class AE_OLD(Model):
             reconstruction_errors.append(tf.reduce_mean(error))
         reconstruction_errors = np.array(reconstruction_errors)
         return reconstruction_errors
-    
-    def reconstruct_img(self,img):
+
+    def reconstruct_img(self, img):
         img = tf.expand_dims(img, axis=0)
         return self.__call__(img)
+
 
 def CNN_confidence_model(
     CNN_model, train_images, validation_images, test_images, y_train, y_valid, y_test
