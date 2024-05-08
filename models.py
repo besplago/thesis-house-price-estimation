@@ -541,6 +541,68 @@ def CNN_AE_RF_model(
     return CNN_AE_RF_model
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+################# LEGACY / Not in USE ###################
 class N_CNN_RF:
     #Setup a class that train N-models and combines them into a single model. Does not take image model as input
     def __init__(self, n, base_model):
@@ -731,9 +793,6 @@ def CNN_RF_model_V2(
 
     RF_model = RF(train_input, train_prices, test_input, test_prices)
     return RF_model
-
-
-################# LEGACY / Not in USE ###################
 class AE_OLD(Model):
     def __init__(self):
         super(AE_OLD, self).__init__()
