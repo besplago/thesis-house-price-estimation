@@ -38,8 +38,8 @@ from utils import (
     prepare_features,
     eval_model,
 )
-from img_utils import preprocess_images, create_bow_representation, set_gpu, data_to_df, set_cpu
-
+#from img_utils import preprocess_images, create_bow_representation, set_gpu, data_to_df, set_cpu
+from utils import *
 from tensorflow.keras.applications import (
     MobileNet,
     MobileNetV3Large,
@@ -80,6 +80,12 @@ RF_MAX_DEPTH = 25
 
 
 #### Feature Models ####
+def Lasso_(x_train, y_train): 
+    from sklearn.linear_model import Lasso
+    model = Lasso(alpha=0.1)
+    model.fit(x_train, y_train)
+    return model
+
 def RF(x_train, y_train):
     # Format the 4-dimensional input to 2-dimensional
     try:
@@ -92,7 +98,7 @@ def RF(x_train, y_train):
         pass
 
     # GridSearch
-    gridSearch = True
+    gridSearch = False
     if gridSearch:
         param_grid = {
             "n_estimators": [100, 200, 300, 400],  # Number of trees in the forest
