@@ -258,14 +258,14 @@ def data_to_df(
 
 
 ###### IMAGE PREPROCESSING ######
-def resize_images(df, column_name: str, width: int, height: int) -> np.array:
-    resized_images = np.array(
-        [
-            cv2.resize(image, (width, height), interpolation=cv2.INTER_NEAREST)
-            for image in df[column_name]
-        ]
-    )
-    return resized_images
+# def resize_images(df, column_name: str, width: int, height: int) -> np.array:
+#     resized_images = np.array(
+#         [
+#             cv2.resize(image, (width, height), interpolation=cv2.INTER_NEAREST)
+#             for image in df[column_name]
+#         ]
+#     )
+#     return resized_images
 
 
 def convert_to_grayscale(images: np.array) -> np.array:
@@ -337,9 +337,12 @@ def preprocess_images(
 
 
 def resize_images(df, column_name: str, width: int, height: int) -> np.array:
+    """
+    Resize the images in a DataFrame to a specific width and height
+    """
     resized_images = np.array(
         [
-            cv2.resize(image, (width, height), interpolation=cv2.INTER_LINEAR)
+            cv2.resize(image, (width, height), interpolation=cv2.INTER_NEAREST)
             for image in df[column_name]
         ]
     )
@@ -376,22 +379,22 @@ def threshold_images(images: np.array) -> np.array:
     return thresholded_images
 
 
-def preprocess_images(
-    df: pd.DataFrame,
-    column_name: str,
-    width: int,
-    height: int,
-    resize: bool,
-    gray_scale: bool,
-    threshhold: bool,
-) -> np.array:
-    if resize:
-        images = resize_images(df, column_name, width, height)
-    if gray_scale:
-        images = convert_to_grayscale(images)
-    if threshhold:
-        images = threshold_images(images)
-    return images
+# def preprocess_images(
+#     df: pd.DataFrame,
+#     column_name: str,
+#     width: int,
+#     height: int,
+#     resize: bool,
+#     gray_scale: bool,
+#     threshhold: bool,
+# ) -> np.array:
+#     if resize:
+#         images = resize_images(df, column_name, width, height)
+#     if gray_scale:
+#         images = convert_to_grayscale(images)
+#     if threshhold:
+#         images = threshold_images(images)
+#     return images
 
 
 def scale_by_size(canvas_size, house_size, max_house_size, image):
