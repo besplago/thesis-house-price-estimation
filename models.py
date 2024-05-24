@@ -31,13 +31,7 @@ from keras import losses, Model
 
 from xgboost import XGBRegressor
 from vit_keras import vit, utils
-from utils import (
-    plot_regression_results,
-    plot_regression_stats,
-    plot_feature_importance,
-    prepare_features,
-    eval_model,
-)
+
 #from img_utils import preprocess_images, create_bow_representation, set_gpu, data_to_df, set_cpu
 from utils import *
 from tensorflow.keras.applications import (
@@ -136,11 +130,11 @@ def RF(x_train, y_train):
 def SVC(x_train, y_train, x_test, y_test):
     from sklearn.svm import SVC
 
-    model = SVC(kernel="linear")
+    model = SVC(kernel="sigmoid", C=1, gamma="auto")
     model.fit(x_train, y_train)
-    y_pred = model.predict(x_test)
-    print("Results")
-    eval_model(y_test, y_pred)
+    #y_pred = model.predict(x_test)
+    #print("Results")
+    #eval_model(y_test, y_pred)
     return model
 
 
@@ -155,7 +149,7 @@ def XGB(x_train, y_train, x_test, y_test):
         enable_categorical=True,
     )
     fit_history = model.fit(x_train, y_train)
-    eval_model(model, x_test, y_test)
+    #eval_model(model, x_test, y_test)
     return model, fit_history
 
 
@@ -171,16 +165,20 @@ def neural_network(x_train, y_train, x_test, y_test):
     model = Sequential()
     # Adding layers
     num_features = x_train.shape[1]
-    model.add(Dense(9, input_dim=num_features, activation="relu"))
-    model.add(Dense(9, activation="relu"))
-    model.add(Dense(9, activation="relu"))
-    model.add(Dense(9, activation="relu"))
-    model.add(Dense(9, activation="relu"))
+    print("num_features", num_features)
+    model.add(Dense(num_features, input_dim=num_features, activation="relu"))
+    model.add(Dense(num_features, activation="relu"))
+    model.add(Dense(num_features, activation="relu"))
+    model.add(Dense(num_features, activation="relu"))
+    model.add(Dense(num_features, activation="relu"))
+    model.add(Dense(num_features, activation="relu"))
+    model.add(Dense(num_features, activation="relu"))
+    model.add(Dense(num_features, activation="relu"))
     model.add(Dense(1, activation="linear"))
     # Compiling and fitting
     model.compile(
-        optimizer=Adam(learning_rate=0.02),
-        loss="mean_squared_error",
+        optimizer=Adam(learning_rate=0.001),
+        loss="mean_absolute_error",
         metrics=["mean_absolute_error"],
     )
 
@@ -191,13 +189,13 @@ def neural_network(x_train, y_train, x_test, y_test):
         batch_size=64,
         validation_data=(x_test, y_test),
         callbacks=EarlyStopping(
-            monitor="val_loss", patience=9, restore_best_weights=True
+            monitor="val_loss", patience=30, restore_best_weights=True
         ),
-        verbose=0,
+        verbose=1,
     )
-    print("Test score: ", model.evaluate(x_test, y_test))
-    y_pred = model.predict(x_test).flatten()
-    eval_model(y_test, y_pred)
+    #print("Test score: ", model.evaluate(x_test, y_test))
+    #y_pred = model.predict(x_test).flatten()
+    #eval_model(y_test, y_pred)
     return model, fit_history
 
 

@@ -484,6 +484,23 @@ def save_reconstuctions(AE, test_predictions, test_prices, test_images, model_di
     worst5 = np.argsort(reconstruction_errors)[::-1][:n]
     print(best5)
     print(worst5)
+
+    #Calcuate and plot the correlation between residuals and reconstruction errors
+    residuals = test_prices - test_predictions.reshape(-1)
+    correlation = np.corrcoef(residuals, reconstruction_errors)
+    plt.scatter(residuals, reconstruction_errors)
+    plt.xlabel("Residuals")
+    plt.ylabel("Reconstruction Errors")
+    plt.title("Residuals vs Reconstruction Errors")
+    textstr = '\n'.join((
+        f"Correlation: {correlation[0][1]}"
+    ))
+    plt.text(0.01, 0.99, textstr, fontsize=10, transform=plt.gcf().transFigure, verticalalignment='top')
+    plt.savefig(f"{model_dir}/Reconstruction_Correlation.png")
+    plt.close()
+
+
+
     for i in range(n):
         idx = best5[i]
         image = test_images[idx]
