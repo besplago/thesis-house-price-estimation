@@ -62,6 +62,7 @@ def load_jpg_and_json(folder_path: str) -> tuple[dict, np.array]:
         raise Exception(f"Error loading json {json_file_path}: {e}")
     return json_data, image_data
 
+
 def load_houses(folder_path: str, max_houses: int = None):
     houses = []
     count = 0  # Counter to track the number of loaded houses
@@ -86,6 +87,7 @@ def load_houses(folder_path: str, max_houses: int = None):
         for error, count in errors.items():
             print(f"{error}: {count} times")
     return houses
+
 
 def load_data_and_images(folder_path, include_floorplan, include_images, max_houses):
     data = []
@@ -153,6 +155,7 @@ def load_data_and_images(folder_path, include_floorplan, include_images, max_hou
 
     return df
 
+
 def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
     # Drop "url" column
     df = df.drop(columns=["url", "address"])
@@ -161,9 +164,7 @@ def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
     df["basement_size"] = df["basement_size"].fillna(0)
 
     # Set the year_rebuilt to year_built if it is NaN
-    df["year_rebuilt"] = df["year_rebuilt"].fillna(
-        df["year_built"]
-    )
+    df["year_rebuilt"] = df["year_rebuilt"].fillna(df["year_built"])
 
     # Encode the features: postal_code, type, energy_class
     df["postal_code"] = df["postal_code"].astype("category").cat.codes
@@ -171,7 +172,7 @@ def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
     df["energy_label"] = df["energy_label"].astype("category").cat.codes
 
     # Drop rows with "longitude" or "latitude" set to 0
-    try: 
+    try:
         df = df[(df["lng"] != 0) & (df["lat"] != 0)]
 
         # Turn "lat" and "lng" to floats
@@ -180,10 +181,10 @@ def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
     except:
         pass
 
-    try: 
-        df = df[(df['longitude'] != 0) & (df['latitude'] != 0)]
-        df['latitude'] = df['latitude'].astype(float)
-        df['longitude'] = df['longitude'].astype(float)
+    try:
+        df = df[(df["longitude"] != 0) & (df["latitude"] != 0)]
+        df["latitude"] = df["latitude"].astype(float)
+        df["longitude"] = df["longitude"].astype(float)
     except:
         pass
 
@@ -192,6 +193,7 @@ def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
+
 def remove_outliers(df, column, z_score_threshold=3):
     """Remove outliers from a DataFrame based on a z-score threshold."""
     from scipy import stats
@@ -199,6 +201,7 @@ def remove_outliers(df, column, z_score_threshold=3):
     z_scores = np.abs(stats.zscore(df[column]))
     df_no_outliers = df[z_scores < z_score_threshold]
     return df_no_outliers
+
 
 def data_to_df(
     folder_paths: list[str], preprocess: bool = True, rm_outliers: bool = False
@@ -224,11 +227,13 @@ def data_to_df(
     if rm_outliers:
         print("Removing outliers...")
         print(f"Datapoints before: {sum([len(df) for df in dfs])}")
-        dfs = [remove_outliers(df, "price", 3) for df in tqdm(dfs, desc="Removing outliers")]
+        dfs = [
+            remove_outliers(df, "price", 3)
+            for df in tqdm(dfs, desc="Removing outliers")
+        ]
         print(f"Datapoints after: {sum([len(df) for df in dfs])}")
 
     return dfs
-
 
 
 ###### IMAGE PREPROCESSING ######
@@ -246,6 +251,7 @@ def convert_to_grayscale(images: np.array) -> np.array:
     )
     return gray_images
 
+
 def convert_to_grayscale_rgb(images: np.array) -> np.array:
     gray_images = np.array(
         [cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) for image in images]
@@ -259,6 +265,7 @@ def convert_to_grayscale_rgb(images: np.array) -> np.array:
         [cv2.cvtColor(image, cv2.COLOR_GRAY2RGB) for image in gray_images]
     )
     return rgb_images
+
 
 def threshold_images(images: np.array) -> np.array:
     image_shape = images[0].shape
@@ -278,6 +285,7 @@ def threshold_images(images: np.array) -> np.array:
 
     return thresholded_images
 
+
 def resize_images(df, column_name: str, width: int, height: int) -> np.array:
     """
     Resize the images in a DataFrame to a specific width and height
@@ -289,6 +297,7 @@ def resize_images(df, column_name: str, width: int, height: int) -> np.array:
         ]
     )
     return resized_images
+
 
 def preprocess_images(
     df: pd.DataFrame,
@@ -309,7 +318,6 @@ def preprocess_images(
     return images
 
 
-
 ###### MODEL TRAINING #######
 def set_gpu():
     """
@@ -328,6 +336,7 @@ def set_gpu():
             print(e)
     else:
         print("No GPU available")
+
 
 def set_cpu():
     """
@@ -350,20 +359,26 @@ def regression_stats(y_test: np.ndarray, y_pred: np.ndarray) -> tuple:
 
     return r2, mae, percentage_error, mse
 
+
 def save_expected_predicted(test_prices, test_predictions, img_dir):
-    #Set X and Y axis to [0, 9.000.000]
-    #plt.xlim(0, 9999999)
-    #plt.ylim(0, 9999999)
+    # Set X and Y axis to [0, 9.000.000]
+    # plt.xlim(0, 9999999)
+    # plt.ylim(0, 9999999)
     plt.scatter(test_prices, test_predictions)
     plt.xlabel("Expected Price")
     plt.ylabel("Predicted Price")
     plt.title("Expected vs Predicted Price")
-    try: 
-        plt.plot([min(test_prices), max(test_prices)], [min(test_prices), max(test_prices)], color='red')
+    try:
+        plt.plot(
+            [min(test_prices), max(test_prices)],
+            [min(test_prices), max(test_prices)],
+            color="red",
+        )
     except:
         pass
     plt.savefig(f"{img_dir}/expected_vs_predicted.png")
     plt.close()
+
 
 def save_residuals(test_prices, test_predictions, img_dir):
     residuals = test_prices - test_predictions.reshape(-1)
@@ -378,6 +393,7 @@ def save_residuals(test_prices, test_predictions, img_dir):
     plt.savefig(f"{img_dir}/residuals.png")
     plt.close()
 
+
 def get_saliency_map(model, image):
     image = np.expand_dims(image, axis=0)
     image = image / 255.0
@@ -390,10 +406,15 @@ def get_saliency_map(model, image):
     gradients = tf.squeeze(gradients)
     gradients = tf.reduce_max(gradients, axis=-1)
     gradients = gradients.numpy()
-    gradients = (gradients - np.min(gradients)) / (np.max(gradients) - np.min(gradients))
+    gradients = (gradients - np.min(gradients)) / (
+        np.max(gradients) - np.min(gradients)
+    )
     return gradients
 
-def save_worst_best_predictions(model, test_predictions, test_prices, test_images, img_dir):
+
+def save_worst_best_predictions(
+    model, test_predictions, test_prices, test_images, img_dir
+):
     residuals = test_prices - test_predictions.reshape(-1)
     distances = np.abs(test_prices - test_predictions.reshape(-1))
     worst_predictions = np.argsort(distances)[-8:]
@@ -405,34 +426,52 @@ def save_worst_best_predictions(model, test_predictions, test_prices, test_image
         prediction = test_predictions[idx]
         residual = residuals[idx]
         plt.imshow(image)
-        textstr = '\n'.join((
-            f"Price: {price}",
-            f"Predicted Price: {prediction}",
-            f"Residual: {residual}"
-        ))
-        plt.text(0.01, 0.99, textstr, fontsize=10, transform=plt.gcf().transFigure, verticalalignment='top')
+        textstr = "\n".join(
+            (
+                f"Price: {price}",
+                f"Predicted Price: {prediction}",
+                f"Residual: {residual}",
+            )
+        )
+        plt.text(
+            0.01,
+            0.99,
+            textstr,
+            fontsize=10,
+            transform=plt.gcf().transFigure,
+            verticalalignment="top",
+        )
         plt.axis("off")
         plt.savefig(f"{img_dir}/worst_{i}.png")
         plt.close()
-        
+
         saliency_map = get_saliency_map(model, image)
         plt.imshow(saliency_map, cmap="hot")
         plt.axis("off")
         plt.savefig(f"{img_dir}/worst_saliency_map_{i}.png")
         plt.close()
-        
+
     for i, idx in enumerate(best_predictions):
         image = test_images[idx]
         price = test_prices[idx]
         prediction = test_predictions[idx]
         residual = residuals[idx]
         plt.imshow(image)
-        textstr = '\n'.join((
-            f"Price: {price}",
-            f"Predicted Price: {prediction}",
-            f"Residual: {residual}"
-        ))
-        plt.text(0.01, 0.99, textstr, fontsize=10, transform=plt.gcf().transFigure, verticalalignment='top')
+        textstr = "\n".join(
+            (
+                f"Price: {price}",
+                f"Predicted Price: {prediction}",
+                f"Residual: {residual}",
+            )
+        )
+        plt.text(
+            0.01,
+            0.99,
+            textstr,
+            fontsize=10,
+            transform=plt.gcf().transFigure,
+            verticalalignment="top",
+        )
         plt.axis("off")
         plt.savefig(f"{img_dir}/best_{i}.png")
         plt.close()
@@ -442,41 +481,51 @@ def save_worst_best_predictions(model, test_predictions, test_prices, test_image
         plt.savefig(f"{img_dir}/best_saliency_map_{i}.png")
         plt.close()
 
+
 def save_features_importance(feature_importance, img_dir):
-    #sort the feature_importance dict by value
-    feature_importance = {k: v for k, v in sorted(feature_importance.items(), key=lambda item: item[1], reverse=True)}
-    #add percentages to the bars
+    # sort the feature_importance dict by value
+    feature_importance = {
+        k: v
+        for k, v in sorted(
+            feature_importance.items(), key=lambda item: item[1], reverse=True
+        )
+    }
+    # add percentages to the bars
     plt.bar(feature_importance.keys(), feature_importance.values())
-    #plt.bar_label = feature_importance.values()
-    plt.title('Feature Importance')
-    #Remove y-labels
-    plt.ylabel('')
+    # plt.bar_label = feature_importance.values()
+    plt.title("Feature Importance")
+    # Remove y-labels
+    plt.ylabel("")
     plt.xticks(rotation=90)
-    #Zoom out so that text is visible 
+    # Zoom out so that text is visible
     plt.subplots_adjust(bottom=0.4)
     plt.savefig(f"{img_dir}/feature_importance.png")
     plt.close()
 
+
 def save_worst_best(test_predictions, test_prices, test_features, model_dir):
-    #Find the best predictions, and worst predictions. 
-    #Save them in two dataframes. Save a latex of the dataframe in a txt-file 
+    # Find the best predictions, and worst predictions.
+    # Save them in two dataframes. Save a latex of the dataframe in a txt-file
     residuals = test_prices - test_predictions.reshape(-1)
     distances = np.abs(test_prices - test_predictions.reshape(-1))
     worst_predictions = np.argsort(distances)[-8:]
     best_predictions = np.argsort(distances)[:8]
-    
+
     test_features_ = pd.DataFrame(test_features).copy()
     test_features_["Price"] = test_prices
     test_features_["Predicted Price"] = test_predictions
     test_features_["Residual"] = residuals
-    test_features_['Absolute Distances'] = distances
-    test_features_ = test_features_.sort_values(by="Absolute Distances", ascending=False)
+    test_features_["Absolute Distances"] = distances
+    test_features_ = test_features_.sort_values(
+        by="Absolute Distances", ascending=False
+    )
     worst_df = test_features_.head(8)
     best_df = test_features_.tail(8)
-    #save worst and best as latex in txt-file 
+    # save worst and best as latex in txt-file
     worst_df.to_latex(f"{model_dir}/worst_predictions.txt")
     best_df.to_latex(f"{model_dir}/best_predictions.txt")
-    
+
+
 def save_reconstuctions(AE, test_predictions, test_prices, test_images, model_dir):
     n = 10
     reconstruction_errors = AE.calculate_ssim(test_images)
@@ -508,24 +557,27 @@ def save_reconstuctions(AE, test_predictions, test_prices, test_images, model_di
         decoded_img = AE.decode(encoded_img)
         encoded_img = np.squeeze(encoded_img)
         decoded_img = np.squeeze(decoded_img)
-        #Turn decoded_img into intergers
+        # Turn decoded_img into intergers
         decoded_img = decoded_img.astype(int)
         fix, ax = plt.subplots(1, 2, figsize=(15, 5))
         ax[0].imshow(image)
         ax[0].set_title("Original Image")
         ax[1].imshow(decoded_img)
         ax[1].set_title("Reconstructed Image")
-        #Set overall title as the price vs. the predicted price
+        # Set overall title as the price vs. the predicted price
         price = test_prices[idx]
         predicted_price = test_predictions[idx]
-        textstr = '\n'.join((
-            f"Price: {price}",
-            f"Predicted Price: {predicted_price}"
-        ))
-        plt.text(0.01, 0.99, textstr, fontsize=10, transform=plt.gcf().transFigure, verticalalignment='top')
+        textstr = "\n".join((f"Price: {price}", f"Predicted Price: {predicted_price}"))
+        plt.text(
+            0.01,
+            0.99,
+            textstr,
+            fontsize=10,
+            transform=plt.gcf().transFigure,
+            verticalalignment="top",
+        )
         plt.savefig(f"{model_dir}/best_reconstruction_{i}.png")
         plt.close()
-        
 
     for i in range(n):
         idx = worst5[i]
@@ -534,7 +586,7 @@ def save_reconstuctions(AE, test_predictions, test_prices, test_images, model_di
         decoded_img = AE.decode(encoded_img)
         encoded_img = np.squeeze(encoded_img)
         decoded_img = np.squeeze(decoded_img)
-        #Turn decoded_img into intergers
+        # Turn decoded_img into intergers
         decoded_img = decoded_img.astype(int)
         fix, ax = plt.subplots(1, 2, figsize=(15, 5))
         ax[0].imshow(image)
@@ -543,46 +595,17 @@ def save_reconstuctions(AE, test_predictions, test_prices, test_images, model_di
         ax[1].set_title("Reconstructed Image")
         price = test_prices[idx]
         predicted_price = test_predictions[idx]
-        textstr = '\n'.join((
-            f"Price: {price}",
-            f"Predicted Price: {predicted_price}"
-        ))
-        plt.text(0.01, 0.99, textstr, fontsize=10, transform=plt.gcf().transFigure, verticalalignment='top')
+        textstr = "\n".join((f"Price: {price}", f"Predicted Price: {predicted_price}"))
+        plt.text(
+            0.01,
+            0.99,
+            textstr,
+            fontsize=10,
+            transform=plt.gcf().transFigure,
+            verticalalignment="top",
+        )
         plt.savefig(f"{model_dir}/worst_reconstruction_{i}.png")
         plt.close()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # def plot_regression_results(model_name, y_test, y_pred):
@@ -964,13 +987,13 @@ def save_reconstuctions(AE, test_predictions, test_prices, test_images, model_di
 
 #     # Compute gradients of the output with respect to the input image
 #     gradient = tape.gradient(predictions, image)
-    
+
 #     # Take absolute value of gradients to get saliency map
 #     saliency_map = tf.abs(gradient)
-    
+
 #     # Reshape saliency map
 #     saliency_map = tf.reshape(saliency_map, image.shape[1:])  # Remove batch dimension
-    
+
 #     # Normalize between 0 and 1
 #     saliency_map /= tf.reduce_max(saliency_map)
 
@@ -992,13 +1015,13 @@ def save_reconstuctions(AE, test_predictions, test_prices, test_images, model_di
 
 #         # Compute gradients of the output with respect to the input image
 #         gradient = tape.gradient(predictions, image)
-        
+
 #         # Take absolute value of gradients to get saliency map
 #         saliency_map = tf.abs(gradient)
-        
+
 #         # Reshape saliency map
 #         saliency_map = tf.reshape(saliency_map, image.shape[1:])  # Remove batch dimension
-        
+
 #         # Normalize between 0 and 1
 #         saliency_map /= tf.reduce_max(saliency_map)
 
@@ -1019,7 +1042,7 @@ def save_reconstuctions(AE, test_predictions, test_prices, test_images, model_di
 #             axes[i, 0].imshow(image)
 #             axes[i, 0].set_title("Original Image")
 #             axes[i, 0].axis("off")
-            
+
 #             # Plot the saliency map
 #             axes[i, 1].imshow(saliency_maps[i], cmap="plasma")
 #             axes[i, 1].set_title("Saliency Map")
@@ -1029,16 +1052,10 @@ def save_reconstuctions(AE, test_predictions, test_prices, test_images, model_di
 #         axes[0].imshow(images[0])
 #         axes[0].set_title("Original Image")
 #         axes[0].axis("off")
-        
+
 #         # Plot the saliency map
 #         axes[1].imshow(saliency_maps[0], cmap="plasma")
 #         axes[1].set_title("Saliency Map")
 #         axes[1].axis("off")
 
 #     plt.show()
-
-
-
-
-
-
